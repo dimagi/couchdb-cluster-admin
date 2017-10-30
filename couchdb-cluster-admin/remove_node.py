@@ -82,6 +82,6 @@ if __name__ == '__main__':
     if remove_from_cluster:
         if confirm("Remove node {} completely from cluster?".format(node_to_remove)):
             _remove_node(node_details, node_to_remove)
-            print('Cluster membership:\n{}'.format(get_membership(node_details)))
+            print('Cluster membership:\n{}'.format(get_membership(node_details).get_printable()))
     else:
         print("Node could not be removed from cluster as it may still have shards")
