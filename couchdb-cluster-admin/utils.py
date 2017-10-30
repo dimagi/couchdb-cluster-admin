@@ -50,7 +50,7 @@ def get_arg_parser(command_description):
 
 
 def node_details_from_args(args):
-    password = getpass.getpass('Password for "{}@{}"'.format(args.username, args.control_node_ip))
+    password = getpass.getpass('Password for "{}@{}":'.format(args.username, args.control_node_ip))
     return NodeDetails(
         args.control_node_ip, args.control_node_port, args.control_node_local_port,
         args.username, password
