@@ -1,15 +1,16 @@
 import sys
 
 from utils import (
-    do_couch_request,
-    get_arg_parser,
-    node_details_from_args,
     check_connection,
-    is_node_in_cluster,
     confirm,
-    remove_node_from_cluster,
     do_node_local_request,
-    get_membership)
+    get_arg_parser,
+    get_db_list,
+    get_membership,
+    is_node_in_cluster,
+    node_details_from_args,
+    remove_node_from_cluster,
+)
 
 
 def _remove_shards_from_node(node_details, db_name, node_to_remove):
@@ -69,9 +70,8 @@ if __name__ == '__main__':
         print('Node already removed from cluster')
         sys.exit(0)
 
-    dbs = do_couch_request(node_details, '_all_dbs')
     remove_from_cluster = True
-    for db_name in dbs:
+    for db_name in get_db_list(node_details, skip_private=False):
         if db_name.startswith('_'):
             # TODO: remove this once there's a workaround for https://github.com/apache/couchdb/issues/858
             print("Skipping db {}".format(db_name))

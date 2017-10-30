@@ -5,11 +5,11 @@ import sys
 from requests.exceptions import HTTPError
 
 from utils import (
-    do_couch_request,
     check_connection,
     confirm,
     do_node_local_request,
-    NodeDetails
+    get_db_list,
+    NodeDetails,
 )
 
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.database == 'ALL':
-        dbs = do_couch_request(from_details, '_all_dbs')
+        dbs = get_db_list(from_details, skip_private=False)
     else:
         dbs = [args.database]
     print(dbs)

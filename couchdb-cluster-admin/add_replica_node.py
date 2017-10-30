@@ -1,14 +1,14 @@
 import sys
 
 from utils import (
-    do_couch_request,
-    get_arg_parser,
-    node_details_from_args,
-    check_connection,
-    is_node_in_cluster,
-    confirm,
     add_node_to_cluster,
-    do_node_local_request
+    check_connection,
+    confirm,
+    do_node_local_request,
+    get_arg_parser,
+    get_db_list,
+    is_node_in_cluster,
+    node_details_from_args,
 )
 
 
@@ -71,8 +71,7 @@ if __name__ == '__main__':
         print(line)
         sys.exit(1)
 
-    dbs = do_couch_request(node_details, '_all_dbs')
-    for db_name in dbs:
+    for db_name in get_db_list(node_details, skip_private=False):
         if db_name.startswith('_'):
             # TODO: remove this once there's a workaround for https://github.com/apache/couchdb/issues/858
             print('Skipping {}'.format(db_name))
