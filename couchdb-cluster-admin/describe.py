@@ -9,6 +9,16 @@ from utils import (
 )
 
 
+def print_shard_table(shard_allocation_docs):
+    last_header = None
+    db_names = [shard_allocation_doc.db_name for shard_allocation_doc in shard_allocation_docs]
+    max_db_name_len = max(map(len, db_names))
+    for shard_allocation_doc in shard_allocation_docs:
+        this_header = sorted(shard_allocation_doc.by_range)
+        print shard_allocation_doc.get_printable(include_shard_names=(last_header != this_header), db_name_len=max_db_name_len)
+        last_header = this_header
+
+
 if __name__ == '__main__':
     parser = get_arg_parser(u'Describe a couchdb cluster')
     args = parser.parse_args()
@@ -21,11 +31,7 @@ if __name__ == '__main__':
     print indent(get_membership(config).get_printable())
 
     print u'Shards'
-    last_header = None
-    db_names = get_db_list(node_details)
-    max_db_name_len = max(map(len, db_names))
-    for db_name in get_db_list(node_details):
-        allocation = get_shard_allocation(config, db_name)
-        this_header = sorted(allocation.by_range)
-        print indent(allocation.get_printable(include_shard_names=(last_header != this_header), db_name_len=max_db_name_len))
-        last_header = this_header
+    print_shard_table([
+        get_shard_allocation(config, db_name)
+        for db_name in sorted(get_db_list(node_details))
+    ])

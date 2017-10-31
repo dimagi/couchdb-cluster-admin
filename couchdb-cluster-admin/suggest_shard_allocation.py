@@ -2,6 +2,7 @@ from collections import namedtuple, defaultdict
 import sys
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
     get_db_list, get_db_metadata, get_shard_allocation
+from describe import print_shard_table
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
@@ -87,18 +88,31 @@ if __name__ == '__main__':
         for db_name, size, shards, _ in sorted(get_db_info()):
             print db_name, humansize(size), len(shards)
 
-    def get_shard_sizes():
+    def get_shard_sizes(db_info):
         return [
-            (size/len(shards),
-             "{shard}/{db}".format(shard=shard_name, db=db_name))
-            for db_name, size, shards, _ in get_db_info()
+            (size/len(shards), (shard_name, db_name))
+            for db_name, size, shards, _ in db_info
             for shard_name in shards
         ]
 
+    db_info = get_db_info()
+
+    suggested_allocation_by_db = defaultdict(list)
     for nodes, copies in allocation:
-        print u"Suggestion for {} with {} copies".format(','.join(nodes), copies)
-        for node in suggest_shard_allocation(get_shard_sizes(), len(nodes), copies):
-            print "Node #{}".format(node.i + 1)
-            print humansize(node.size[0])
-            for shard in node.shards:
-                print "  {}".format(shard)
+        for node_allocation in suggest_shard_allocation(get_shard_sizes(db_info), len(nodes), copies):
+            print "{}\t{}".format(nodes[node_allocation.i], humansize(node_allocation.size[0]))
+            for shard_name, db_name in node_allocation.shards:
+                suggested_allocation_by_db[db_name].append((nodes[node_allocation.i], shard_name))
+
+    for db_name, _, _, shard_allocation_doc in db_info:
+        suggested_allocation = suggested_allocation_by_db[db_name]
+        by_range = defaultdict(list)
+        by_node = defaultdict(list)
+        for node, shard in suggested_allocation:
+            by_range[shard].append(node)
+            by_node[node].append(shard)
+        shard_allocation_doc.by_range = dict(by_range)
+        shard_allocation_doc.by_node = dict(by_node)
+        assert shard_allocation_doc.validate_allocation()
+
+    print_shard_table([shard_allocation_doc for _, _, _, shard_allocation_doc in db_info])
