@@ -1,5 +1,6 @@
 from collections import namedtuple, defaultdict
 import sys
+from utils import humansize
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
@@ -14,19 +15,6 @@ def suggest_shard_allocation(shard_sizes, n_nodes, n_copies):
             node.shards.append(shard)
             node.size[0] += size
     return nodes
-
-
-def humansize(nbytes):
-    """
-    Copied from https://stackoverflow.com/questions/14996453/python-libraries-to-calculate-human-readable-filesize-from-bytes#14996816
-    """
-    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    i = 0
-    while nbytes >= 1024 and i < len(suffixes)-1:
-        nbytes /= 1024.
-        i += 1
-    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
-    return '%s %s' % (f, suffixes[i])
 
 
 def main(keep_shards_whole=True):
