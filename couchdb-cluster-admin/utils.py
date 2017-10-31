@@ -44,12 +44,26 @@ def get_db_list(node_details, skip_private=True):
         return db_names
 
 
-def get_membership(node_details):
-    return MembershipDoc.wrap(do_couch_request(node_details, '_membership'))
+def get_membership(config):
+    if isinstance(config, NodeDetails):
+        node_details = config
+        config = None
+    else:
+        node_details = config.get_control_node()
+    membership_doc = MembershipDoc.wrap(do_couch_request(node_details, '_membership'))
+    membership_doc.set_config(config)
+    return membership_doc
 
 
-def get_shard_allocation(node_details, db_name):
-    return ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
+def get_shard_allocation(config, db_name):
+    if isinstance(config, NodeDetails):
+        node_details = config
+        config = None
+    else:
+        node_details = config.get_control_node()
+    shard_allocation_doc = ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
+    shard_allocation_doc.set_config(config)
+    return shard_allocation_doc
 
 
 def confirm(msg):
@@ -86,8 +100,16 @@ class Config(JsonObject):
             self.username, self._password
         )
 
+    def format_node_name(self, node):
+        if node in self.aliases:
+            return self.aliases[node]
+        elif node.startswith('couchdb@'):
+            return node[len('couchdb@'):]
+        else:
+            return node
 
-def node_details_from_args(args):
+
+def get_config_from_args(args):
     if args.conf:
         with open(args.conf) as f:
             config = Config.wrap(yaml.load(f))
@@ -102,7 +124,11 @@ def node_details_from_args(args):
 
     password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
     config.set_password(password)
-    return config.get_control_node()
+    return config
+
+
+def node_details_from_args(args):
+    return get_config_from_args(args).get_control_node()
 
 
 def add_node_to_cluster(node_details, new_node):
@@ -138,8 +164,3 @@ def is_node_in_cluster(node_details, node_to_check):
 def indent(text, n=1):
     padding = n * u'\t'
     return u''.join(padding + line for line in text.splitlines(True))
-
-
-def strip_couchdb(node):
-    if node.startswith('couchdb@'):
-        return node[len('couchdb@'):]

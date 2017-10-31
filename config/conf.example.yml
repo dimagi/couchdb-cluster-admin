@@ -4,7 +4,7 @@ control_node_local_port: 5986
 username: admin
 
 aliases:
-  1.2.3.1: couch1
-  1.2.3.2: couch2
-  1.2.3.3: couch3
-  1.2.3.4: couch4
+  couchdb@1.2.3.1: couch1
+  couchdb@1.2.3.2: couch2
+  couchdb@1.2.3.3: couch3
+  couchdb@1.2.3.4: couch4
