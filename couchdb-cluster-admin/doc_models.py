@@ -8,12 +8,13 @@ class MembershipDoc(JsonObject):
     all_nodes = ListProperty(unicode, required=True)
 
     def get_printable(self):
+        from utils import strip_couchdb
         return (
             u"cluster_nodes:\t{all_nodes}\n"
             u"all_nodes:\t{cluster_nodes}"
         ).format(
-            cluster_nodes=u'\t'.join(self.cluster_nodes),
-            all_nodes=u'\t'.join(self.all_nodes),
+            cluster_nodes=u'\t'.join(map(strip_couchdb, self.cluster_nodes)),
+            all_nodes=u'\t'.join(map(strip_couchdb, self.all_nodes)),
         )
 
 
