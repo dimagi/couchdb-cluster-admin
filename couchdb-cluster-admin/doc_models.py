@@ -73,7 +73,7 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
             parts.append(u"In this allocation by_node and by_range are inconsistent:", repr(self))
         else:
             first_column = u'{{: <{}}}  '.format(db_name_len)
-            other_columns = u'{: ^17s}  '
+            other_columns = u'{: ^20s}  '
             if include_shard_names:
                 parts.append(first_column.format(u''))
                 for shard in sorted(self.by_range):
