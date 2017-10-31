@@ -1,9 +1,11 @@
 import argparse
 import getpass
 from collections import namedtuple
+from jsonobject import JsonObject, StringProperty, IntegerProperty, DictProperty
 
 import requests
 import time
+import yaml
 
 from doc_models import MembershipDoc, ShardAllocationDoc
 
@@ -56,23 +58,51 @@ def confirm(msg):
 
 def get_arg_parser(command_description):
     parser = argparse.ArgumentParser(description=command_description)
-    parser.add_argument('--control-node-ip', dest='control_node_ip', required=True,
+    parser.add_argument('--conf', dest='conf')
+    parser.add_argument('--control-node-ip', dest='control_node_ip',
                         help='IP of an existing node in the cluster')
-    parser.add_argument('--username', dest='username', required=True,
+    parser.add_argument('--username', dest='username',
                         help='Admin username')
-    parser.add_argument('--control-node-port', dest='control_node_port', default=15984,
+    parser.add_argument('--control-node-port', dest='control_node_port', default=15984, type=int,
                         help='Port of control node. Default: 15984')
-    parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986,
+    parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986, type=int,
                         help='Port of control node for local operations. Default: 15986')
     return parser
 
 
+class Config(JsonObject):
+    control_node_ip = StringProperty()
+    control_node_port = IntegerProperty()
+    control_node_local_port = IntegerProperty()
+    username = StringProperty()
+    aliases = DictProperty(unicode)
+
+    def set_password(self, password):
+        self._password = password
+
+    def get_control_node(self):
+        return NodeDetails(
+            self.control_node_ip, self.control_node_port, self.control_node_local_port,
+            self.username, self._password
+        )
+
+
 def node_details_from_args(args):
-    password = getpass.getpass('Password for "{}@{}":'.format(args.username, args.control_node_ip))
-    return NodeDetails(
-        args.control_node_ip, args.control_node_port, args.control_node_local_port,
-        args.username, password
-    )
+    if args.conf:
+        with open(args.conf) as f:
+            config = Config.wrap(yaml.load(f))
+    else:
+        config = Config(
+            control_node_ip=args.control_node_ip,
+            control_node_port=args.control_node_port,
+            control_node_local_port=args.control_node_local_port,
+            username=args.username,
+            aliases=None,
+        )
+
+    password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
+    config.set_password(password)
+    return config.get_control_node()
 
 
 def add_node_to_cluster(node_details, new_node):
