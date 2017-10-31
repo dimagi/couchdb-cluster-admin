@@ -47,9 +47,6 @@ def get_db_size(node_details, db_name):
     return get_db_metadata(node_details, db_name)['disk_size']
 
 
-def get_shard_names(node_details, db_name):
-    return sorted(get_shard_allocation(node_details, db_name).by_range)
-
 if __name__ == '__main__':
     from gevent import monkey; monkey.patch_all()
     import gevent
@@ -70,29 +67,37 @@ if __name__ == '__main__':
     def get_db_info():
         db_sizes = {}
         db_shards = {}
+        shard_allocation_docs = {}
 
         def _gather_db_size(db_name):
             db_sizes[db_name] = get_db_size(node_details, db_name)
 
         def _gather_db_shard_names(db_name):
-            db_shards[db_name] = get_shard_names(node_details, db_name)
+            doc = get_shard_allocation(node_details, db_name)
+            shard_allocation_docs[db_name] = doc
+            db_shards[db_name] = sorted(doc.by_range)
 
         gevent.joinall([gevent.spawn(_gather_db_size, db_name) for db_name in db_names] +
                        [gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
 
-        for db_name, size in sorted(db_sizes.items()):
-            print db_name, humansize(size), len(db_shards[db_name])
+        return [(db_name, db_sizes[db_name], db_shards[db_name], shard_allocation_docs[db_name])
+                for db_name in db_names]
 
+    def print_db_info():
+        for db_name, size, shards, _ in sorted(get_db_info()):
+            print db_name, humansize(size), len(shards)
+
+    def get_shard_sizes():
         return [
-            (db_sizes[db_name]/len(db_shards[db_name]),
+            (size/len(shards),
              "{shard}/{db}".format(shard=shard_name, db=db_name))
-            for db_name in db_names
-            for shard_name in db_shards[db_name]
+            for db_name, size, shards, _ in get_db_info()
+            for shard_name in shards
         ]
 
     for nodes, copies in allocation:
         print u"Suggestion for {} with {} copies".format(','.join(nodes), copies)
-        for node in suggest_shard_allocation(get_db_info(), len(nodes), copies):
+        for node in suggest_shard_allocation(get_shard_sizes(), len(nodes), copies):
             print "Node #{}".format(node.i + 1)
             print humansize(node.size[0])
             for shard in node.shards:
