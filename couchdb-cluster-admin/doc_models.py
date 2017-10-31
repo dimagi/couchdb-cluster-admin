@@ -32,6 +32,10 @@ class ShardAllocationDoc(JsonObject):
     def usable_shard_suffix(self):
         return ''.join(map(chr, self.shard_suffix))
 
+    @property
+    def db_name(self):
+        return self._id
+
     def validate_allocation(self):
         pairs_from_by_node = {(node, shard)
                               for node, shards in self.by_node.items()
@@ -41,3 +45,26 @@ class ShardAllocationDoc(JsonObject):
                                for node in nodes}
 
         return pairs_from_by_node == pairs_from_by_range
+
+    def get_printable(self, include_shard_names=True):
+        """
+        Prints one row in a shard table
+
+        :param include_shard_names: include header row consisting of the names of shards
+        :return: a string to be printed out
+        """
+        parts = []
+        from utils import strip_couchdb
+        if not self.validate_allocation():
+            parts.append(self.db_name)
+            parts.append(u"In this allocation by_node and by_range are inconsistent:", repr(self))
+        else:
+            if include_shard_names:
+                parts.append(u'\t')
+                for shard in sorted(self.by_range):
+                    parts.append(u'{}\t'.format(shard))
+                parts.append(u'\n')
+            parts.append(u'{}\t'.format(self.db_name))
+            for shard, nodes in sorted(self.by_range.items()):
+                parts.append(u'{}\t'.format(u','.join(map(strip_couchdb, nodes))))
+        return ''.join(parts)

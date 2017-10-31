@@ -108,3 +108,8 @@ def is_node_in_cluster(node_details, node_to_check):
 def indent(text, n=1):
     padding = n * u'\t'
     return u''.join(padding + line for line in text.splitlines(True))
+
+
+def strip_couchdb(node):
+    if node.startswith('couchdb@'):
+        return node[len('couchdb@'):]
