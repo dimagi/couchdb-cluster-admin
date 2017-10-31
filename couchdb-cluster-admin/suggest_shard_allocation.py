@@ -1,5 +1,4 @@
 from collections import namedtuple, defaultdict
-import sys
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
     get_db_list, get_db_metadata, get_shard_allocation
 from describe import print_shard_table
@@ -17,31 +16,6 @@ def suggest_shard_allocation(shard_sizes, n_nodes, n_copies):
             node.shards.append(shard)
             node.size[0] += size
     return nodes
-
-
-def main(keep_shards_whole=True):
-    """
-    < shard-sizes.txt python couchdb-cluster-admin/suggest_shard_allocation.py 3 2
-    """
-    shards_sizes = []
-
-    if not keep_shards_whole:
-        for line in sys.stdin.readlines():
-            size, shard = line.split()
-            shards_sizes.append((int(size), shard))
-    else:
-        whole_shard_sizes = defaultdict(int)
-        for line in sys.stdin.readlines():
-            size, shard = line.split()
-            whole_shard_sizes[shard.split('/')[0]] += int(size)
-        for whole_shard, size in whole_shard_sizes.items():
-            shards_sizes.append((size, whole_shard))
-
-    for node in suggest_shard_allocation(shards_sizes, int(sys.argv[1]), int(sys.argv[2])):
-        print "Node #{}".format(node.i + 1)
-        print humansize(node.size[0])
-        for shard in node.shards:
-            print "  {}".format(shard)
 
 
 def get_db_size(node_details, db_name):
