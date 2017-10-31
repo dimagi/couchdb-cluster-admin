@@ -31,3 +31,13 @@ class ShardAllocationDoc(JsonObject):
     @property
     def usable_shard_suffix(self):
         return ''.join(map(chr, self.shard_suffix))
+
+    def validate_allocation(self):
+        pairs_from_by_node = {(node, shard)
+                              for node, shards in self.by_node.items()
+                              for shard in shards}
+        pairs_from_by_range = {(node, shard)
+                               for shard, nodes in self.by_range.items()
+                               for node in nodes}
+
+        return pairs_from_by_node == pairs_from_by_range
