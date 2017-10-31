@@ -1,6 +1,7 @@
 from collections import namedtuple, defaultdict
 import sys
-from utils import humansize
+from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
+    get_db_list, get_db_metadata, get_shard_allocation
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
@@ -42,5 +43,57 @@ def main(keep_shards_whole=True):
             print "  {}".format(shard)
 
 
+def get_db_size(node_details, db_name):
+    return get_db_metadata(node_details, db_name)['disk_size']
+
+
+def get_shard_names(node_details, db_name):
+    return sorted(get_shard_allocation(node_details, db_name).by_range)
+
 if __name__ == '__main__':
-    main()
+    from gevent import monkey; monkey.patch_all()
+    import gevent
+    parser = get_arg_parser(u'Suggest shard allocation for a cluster')
+    parser.add_argument('--allocate', dest='allocation', nargs="+", required=True,
+                        help='List of nodes and how many copies you want on them, '
+                             'like node1,node2,node3:<ncopies> [...]')
+    args = parser.parse_args()
+    allocation = [
+        (nodes.split(','), int(copies))
+        for nodes, copies in (group.split(':') for group in args.allocation)
+    ]
+    config = get_config_from_args(args)
+    node_details = config.get_control_node()
+    check_connection(node_details)
+    db_names = get_db_list(node_details)
+
+    def get_db_info():
+        db_sizes = {}
+        db_shards = {}
+
+        def _gather_db_size(db_name):
+            db_sizes[db_name] = get_db_size(node_details, db_name)
+
+        def _gather_db_shard_names(db_name):
+            db_shards[db_name] = get_shard_names(node_details, db_name)
+
+        gevent.joinall([gevent.spawn(_gather_db_size, db_name) for db_name in db_names] +
+                       [gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
+
+        for db_name, size in sorted(db_sizes.items()):
+            print db_name, humansize(size), len(db_shards[db_name])
+
+        return [
+            (db_sizes[db_name]/len(db_shards[db_name]),
+             "{shard}/{db}".format(shard=shard_name, db=db_name))
+            for db_name in db_names
+            for shard_name in db_shards[db_name]
+        ]
+
+    for nodes, copies in allocation:
+        print u"Suggestion for {} with {} copies".format(','.join(nodes), copies)
+        for node in suggest_shard_allocation(get_db_info(), len(nodes), copies):
+            print "Node #{}".format(node.i + 1)
+            print humansize(node.size[0])
+            for shard in node.shards:
+                print "  {}".format(shard)

@@ -44,6 +44,10 @@ def get_db_list(node_details, skip_private=True):
         return db_names
 
 
+def get_db_metadata(node_details, db_name):
+    return do_couch_request(node_details, db_name)
+
+
 def get_membership(config):
     if isinstance(config, NodeDetails):
         node_details = config
