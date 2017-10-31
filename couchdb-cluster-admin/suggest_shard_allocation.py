@@ -22,9 +22,47 @@ def get_db_size(node_details, db_name):
     return get_db_metadata(node_details, db_name)['disk_size']
 
 
-if __name__ == '__main__':
-    from gevent import monkey; monkey.patch_all()
+def get_db_info(config):
     import gevent
+    node_details = config.get_control_node()
+    db_names = get_db_list(node_details)
+    db_sizes = {}
+    db_shards = {}
+    shard_allocation_docs = {}
+
+    def _gather_db_size(db_name):
+        db_sizes[db_name] = get_db_size(node_details, db_name)
+
+    def _gather_db_shard_names(db_name):
+        doc = get_shard_allocation(config, db_name)
+        shard_allocation_docs[db_name] = doc
+        db_shards[db_name] = sorted(doc.by_range)
+
+    gevent.joinall([gevent.spawn(_gather_db_size, db_name) for db_name in db_names] +
+                   [gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
+
+    return [(db_name, db_sizes[db_name], db_shards[db_name], shard_allocation_docs[db_name])
+            for db_name in db_names]
+
+
+def print_db_info(config):
+    """
+    Print table of <db name> <disk size (not including views)> <number of shards>
+    :return:
+    """
+    for db_name, size, shards, _ in sorted(get_db_info(config)):
+        print db_name, humansize(size), len(shards)
+
+
+def get_shard_sizes(db_info):
+    return [
+        (size/len(shards), (shard_name, db_name))
+        for db_name, size, shards, _ in db_info
+        for shard_name in shards
+    ]
+
+
+def main():
     parser = get_arg_parser(u'Suggest shard allocation for a cluster')
     parser.add_argument('--allocate', dest='allocation', nargs="+", required=True,
                         help='List of nodes and how many copies you want on them, '
@@ -39,39 +77,8 @@ if __name__ == '__main__':
     ]
     node_details = config.get_control_node()
     check_connection(node_details)
-    db_names = get_db_list(node_details)
 
-    def get_db_info():
-        db_sizes = {}
-        db_shards = {}
-        shard_allocation_docs = {}
-
-        def _gather_db_size(db_name):
-            db_sizes[db_name] = get_db_size(node_details, db_name)
-
-        def _gather_db_shard_names(db_name):
-            doc = get_shard_allocation(config, db_name)
-            shard_allocation_docs[db_name] = doc
-            db_shards[db_name] = sorted(doc.by_range)
-
-        gevent.joinall([gevent.spawn(_gather_db_size, db_name) for db_name in db_names] +
-                       [gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
-
-        return [(db_name, db_sizes[db_name], db_shards[db_name], shard_allocation_docs[db_name])
-                for db_name in db_names]
-
-    def print_db_info():
-        for db_name, size, shards, _ in sorted(get_db_info()):
-            print db_name, humansize(size), len(shards)
-
-    def get_shard_sizes(db_info):
-        return [
-            (size/len(shards), (shard_name, db_name))
-            for db_name, size, shards, _ in db_info
-            for shard_name in shards
-        ]
-
-    db_info = get_db_info()
+    db_info = get_db_info(config)
 
     suggested_allocation_by_db = defaultdict(list)
     for nodes, copies in allocation:
@@ -103,3 +110,8 @@ if __name__ == '__main__':
         assert shard_allocation_doc.validate_allocation()
 
     print_shard_table([shard_allocation_doc for _, _, _, shard_allocation_doc in db_info])
+
+
+if __name__ == '__main__':
+    from gevent import monkey; monkey.patch_all()
+    main()
