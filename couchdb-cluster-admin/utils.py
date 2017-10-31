@@ -164,3 +164,16 @@ def is_node_in_cluster(node_details, node_to_check):
 def indent(text, n=1):
     padding = n * u'\t'
     return u''.join(padding + line for line in text.splitlines(True))
+
+
+def humansize(nbytes):
+    """
+    Copied from https://stackoverflow.com/questions/14996453/python-libraries-to-calculate-human-readable-filesize-from-bytes#14996816
+    """
+    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    i = 0
+    while nbytes >= 1024 and i < len(suffixes)-1:
+        nbytes /= 1024.
+        i += 1
+    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
+    return '%s %s' % (f, suffixes[i])
