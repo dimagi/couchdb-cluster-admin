@@ -5,6 +5,8 @@ from collections import namedtuple
 import requests
 import time
 
+from doc_models import MembershipDoc, ShardAllocationDoc
+
 NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port username password')
 
 
@@ -28,8 +30,24 @@ def _do_request(node_details, path, port, method='get', params=None, json=None):
     return response.json()
 
 
+def get_db_list(node_details, skip_private=True):
+    """
+    :param skip_private: if True, exclude dbs that start with an underscore from the result
+    :return: list of dbs
+    """
+    db_names = do_couch_request(node_details, '_all_dbs')
+    if skip_private:
+        return [db_name for db_name in db_names if not db_name.startswith('_')]
+    else:
+        return db_names
+
+
 def get_membership(node_details):
-    return do_couch_request(node_details, '_membership')
+    return MembershipDoc.wrap(do_couch_request(node_details, '_membership'))
+
+
+def get_shard_allocation(node_details, db_name):
+    return ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
 
 
 def confirm(msg):
@@ -50,7 +68,7 @@ def get_arg_parser(command_description):
 
 
 def node_details_from_args(args):
-    password = getpass.getpass('Password for "{}@{}"'.format(args.username, args.control_node_ip))
+    password = getpass.getpass('Password for "{}@{}":'.format(args.username, args.control_node_ip))
     return NodeDetails(
         args.control_node_ip, args.control_node_port, args.control_node_local_port,
         args.username, password
@@ -84,4 +102,14 @@ def check_connection(node_details):
 
 def is_node_in_cluster(node_details, node_to_check):
     membership = get_membership(node_details)
-    return node_to_check in membership['cluster_nodes']
+    return node_to_check in membership.cluster_nodes
+
+
+def indent(text, n=1):
+    padding = n * u'\t'
+    return u''.join(padding + line for line in text.splitlines(True))
+
+
+def strip_couchdb(node):
+    if node.startswith('couchdb@'):
+        return node[len('couchdb@'):]
