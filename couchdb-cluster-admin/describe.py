@@ -9,17 +9,37 @@ from utils import (
 )
 
 
+def strip_couchdb(node):
+    if node.startswith('couchdb@'):
+        return node[len('couchdb@'):]
+
+
 if __name__ == '__main__':
-    parser = get_arg_parser('Describe a couchdb cluster')
+    parser = get_arg_parser(u'Describe a couchdb cluster')
     args = parser.parse_args()
 
     node_details = node_details_from_args(args)
     check_connection(node_details)
 
-    print 'Membership'
+    print u'Membership'
     print indent(get_membership(node_details).get_printable())
 
-    print 'Shards'
+    print u'Shards'
+    last_header = None
     for db_name in get_db_list(node_details):
-        print indent(db_name)
-        print indent(repr(get_shard_allocation(node_details, db_name)), n=2)
+        allocation = get_shard_allocation(node_details, db_name)
+        if not allocation.validate_allocation():
+            print db_name
+            print u"In this allocation by_node and by_range are inconsistent:", repr(allocation)
+        else:
+            this_header = sorted(allocation.by_range)
+            if this_header != last_header:
+                print '\t',
+                for shard in this_header:
+                    print u'{}\t'.format(shard),
+                last_header = this_header
+                print
+            print '{}\t'.format(db_name),
+            for shard, nodes in sorted(allocation.by_range.items()):
+                print u'{}\t'.format(u','.join(map(strip_couchdb, nodes))),
+            print

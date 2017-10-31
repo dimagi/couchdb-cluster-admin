@@ -5,7 +5,7 @@ from collections import namedtuple
 import requests
 import time
 
-from doc_models import MembershipDoc
+from doc_models import MembershipDoc, ShardAllocationDoc
 
 NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port username password')
 
@@ -47,7 +47,7 @@ def get_membership(node_details):
 
 
 def get_shard_allocation(node_details, db_name):
-    return do_node_local_request(node_details, '_dbs/{}'.format(db_name))
+    return ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
 
 
 def confirm(msg):
