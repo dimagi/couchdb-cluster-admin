@@ -60,7 +60,7 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
 
         return pairs_from_by_node == pairs_from_by_range
 
-    def get_printable(self, include_shard_names=True):
+    def get_printable(self, include_shard_names=True, db_name_len=20):
         """
         Prints one row in a shard table
 
@@ -72,12 +72,14 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
             parts.append(self.db_name)
             parts.append(u"In this allocation by_node and by_range are inconsistent:", repr(self))
         else:
+            first_column = u'{{: <{}}}  '.format(db_name_len)
+            other_columns = u'{: ^17s}  '
             if include_shard_names:
-                parts.append(u'\t')
+                parts.append(first_column.format(u''))
                 for shard in sorted(self.by_range):
-                    parts.append(u'{}\t'.format(shard))
+                    parts.append(other_columns.format(shard))
                 parts.append(u'\n')
-            parts.append(u'{}\t'.format(self.db_name))
+            parts.append(first_column.format(self.db_name))
             for shard, nodes in sorted(self.by_range.items()):
-                parts.append(u'{}\t'.format(u','.join(map(self.config.format_node_name, nodes))))
+                parts.append(other_columns.format(u','.join(map(self.config.format_node_name, nodes))))
         return ''.join(parts)

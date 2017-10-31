@@ -22,8 +22,10 @@ if __name__ == '__main__':
 
     print u'Shards'
     last_header = None
+    db_names = get_db_list(node_details)
+    max_db_name_len = max(map(len, db_names))
     for db_name in get_db_list(node_details):
         allocation = get_shard_allocation(config, db_name)
         this_header = sorted(allocation.by_range)
-        print indent(allocation.get_printable(include_shard_names=(last_header != this_header)))
+        print indent(allocation.get_printable(include_shard_names=(last_header != this_header), db_name_len=max_db_name_len))
         last_header = this_header
