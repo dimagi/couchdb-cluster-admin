@@ -56,11 +56,13 @@ if __name__ == '__main__':
                         help='List of nodes and how many copies you want on them, '
                              'like node1,node2,node3:<ncopies> [...]')
     args = parser.parse_args()
+    config = get_config_from_args(args)
+    formal_name_lookup = {nickname: formal_name
+                          for formal_name, nickname in config.aliases.items()}
     allocation = [
-        (nodes.split(','), int(copies))
+        ([formal_name_lookup[node] for node in nodes.split(',')], int(copies))
         for nodes, copies in (group.split(':') for group in args.allocation)
     ]
-    config = get_config_from_args(args)
     node_details = config.get_control_node()
     check_connection(node_details)
     db_names = get_db_list(node_details)
@@ -74,7 +76,7 @@ if __name__ == '__main__':
             db_sizes[db_name] = get_db_size(node_details, db_name)
 
         def _gather_db_shard_names(db_name):
-            doc = get_shard_allocation(node_details, db_name)
+            doc = get_shard_allocation(config, db_name)
             shard_allocation_docs[db_name] = doc
             db_shards[db_name] = sorted(doc.by_range)
 
@@ -100,12 +102,15 @@ if __name__ == '__main__':
     suggested_allocation_by_db = defaultdict(list)
     for nodes, copies in allocation:
         for node_allocation in suggest_shard_allocation(get_shard_sizes(db_info), len(nodes), copies):
-            print "{}\t{}".format(nodes[node_allocation.i], humansize(node_allocation.size[0]))
+            print "{}\t{}".format(config.format_node_name(nodes[node_allocation.i]), humansize(node_allocation.size[0]))
             for shard_name, db_name in node_allocation.shards:
                 suggested_allocation_by_db[db_name].append((nodes[node_allocation.i], shard_name))
 
     for db_name, _, _, shard_allocation_doc in db_info:
-        suggested_allocation = suggested_allocation_by_db[db_name]
+        suggested_allocation = set(suggested_allocation_by_db[db_name])
+        current_allocation = {(node, shard)
+                              for shard, nodes in shard_allocation_doc.by_range.items()
+                              for node in nodes}
         by_range = defaultdict(list)
         by_node = defaultdict(list)
         for node, shard in suggested_allocation:
@@ -113,6 +118,14 @@ if __name__ == '__main__':
             by_node[node].append(shard)
         shard_allocation_doc.by_range = dict(by_range)
         shard_allocation_doc.by_node = dict(by_node)
+        shard_allocation_doc.changelog.extend([
+            ["add", shard, node]
+            for node, shard in suggested_allocation - current_allocation
+        ])
+        shard_allocation_doc.changelog.extend([
+            ["delete", shard, node]
+            for node, shard in current_allocation - suggested_allocation
+        ])
         assert shard_allocation_doc.validate_allocation()
 
     print_shard_table([shard_allocation_doc for _, _, _, shard_allocation_doc in db_info])
