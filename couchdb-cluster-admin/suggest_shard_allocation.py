@@ -7,7 +7,7 @@ _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
 
 def suggest_shard_allocation(shard_sizes, n_nodes, n_copies):
-    shard_sizes = sorted(shard_sizes)
+    shard_sizes = reversed(sorted(shard_sizes))
     # size is a list here to simulate a mutable int
     nodes = [_NodeAllocation(i, [0], []) for i in range(n_nodes)]
     for size, shard in shard_sizes:
