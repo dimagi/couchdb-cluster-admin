@@ -1,6 +1,6 @@
 from collections import namedtuple, defaultdict
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
-    get_db_list, get_db_metadata, get_shard_allocation
+    get_db_list, get_db_metadata, get_shard_allocation, do_couch_request
 from describe import print_shard_table
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
@@ -22,13 +22,31 @@ def get_db_size(node_details, db_name):
     return get_db_metadata(node_details, db_name)['disk_size']
 
 
+def get_view_signature_and_size(node_details, db_name, view_name):
+    view_info = do_couch_request(
+        node_details,
+        '/{db_name}/_design/{view_name}/_info'.format(db_name=db_name, view_name=view_name)
+    )
+    return view_info['view_index']['signature'], view_info['view_index']['sizes']['file']
+
+
+def get_views_list(node_details, db_name):
+    view_response = do_couch_request(
+        node_details,
+        '/{db_name}/_all_docs?startkey="_design%2F"&endkey="_design0"'.format(db_name=db_name)
+    )
+    return [row['id'][len('_design/'):] for row in view_response['rows'] if row['id'].startswith('_design/')]
+
+
 def get_db_info(config):
     import gevent
+    processes = []
     node_details = config.get_control_node()
     db_names = get_db_list(node_details)
     db_sizes = {}
     db_shards = {}
     shard_allocation_docs = {}
+    view_sizes = defaultdict(dict)
 
     def _gather_db_size(db_name):
         db_sizes[db_name] = get_db_size(node_details, db_name)
@@ -38,10 +56,26 @@ def get_db_info(config):
         shard_allocation_docs[db_name] = doc
         db_shards[db_name] = sorted(doc.by_range)
 
-    gevent.joinall([gevent.spawn(_gather_db_size, db_name) for db_name in db_names] +
-                   [gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
+    def _gather_view_size(db_name, view_name):
+        signature, size = get_view_signature_and_size(node_details, db_name, view_name)
+        view_sizes[db_name][signature] = (view_name, size)
 
-    return [(db_name, db_sizes[db_name], db_shards[db_name], shard_allocation_docs[db_name])
+    def _gather_view_sizes(db_name):
+        subprocesses = []
+        for view_name in get_views_list(node_details, db_name):
+            # _gather_view_size(db_name, view_name)
+            subprocesses.append(gevent.spawn(_gather_view_size, db_name, view_name))
+        gevent.joinall(subprocesses)
+
+    processes.extend([gevent.spawn(_gather_view_sizes, db_name) for db_name in db_names])
+    processes.extend([gevent.spawn(_gather_db_size, db_name) for db_name in db_names])
+    processes.extend([gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
+
+    gevent.joinall(processes)
+
+    view_sizes = {db_name: {name: size for name, size in view_sizes[db_name].values()}
+                  for db_name in db_names}
+    return [(db_name, db_sizes[db_name], view_sizes[db_name], db_shards[db_name], shard_allocation_docs[db_name])
             for db_name in db_names]
 
 
@@ -50,14 +84,22 @@ def print_db_info(config):
     Print table of <db name> <disk size (not including views)> <number of shards>
     :return:
     """
-    for db_name, size, shards, _ in sorted(get_db_info(config)):
-        print db_name, humansize(size), len(shards)
+    info = sorted(get_db_info(config))
+    row = u"{: <30}\t{: <20}\t{: <20}\t{: <20}"
+    print row.format(u"Database", u"Data size on Disk", u"View size on Disk", u"Number of shards")
+    for db_name, size, view_sizes, shards, _ in info:
+        print row.format(
+            db_name,
+            humansize(size),
+            humansize(sum([view_size for view_name, view_size in view_sizes.items()])),
+            len(shards)
+        )
 
 
 def get_shard_sizes(db_info):
     return [
-        (size/len(shards), (shard_name, db_name))
-        for db_name, size, shards, _ in db_info
+        (1.0 * sum([size] + views_size.values()) / len(shards), (shard_name, db_name))
+        for db_name, size, views_size, shards, _ in db_info
         for shard_name in shards
     ]
 
@@ -87,7 +129,7 @@ def main():
             for shard_name, db_name in node_allocation.shards:
                 suggested_allocation_by_db[db_name].append((nodes[node_allocation.i], shard_name))
 
-    for db_name, _, _, shard_allocation_doc in db_info:
+    for db_name, _, _, _, shard_allocation_doc in db_info:
         suggested_allocation = set(suggested_allocation_by_db[db_name])
         current_allocation = {(node, shard)
                               for shard, nodes in shard_allocation_doc.by_range.items()
@@ -109,7 +151,7 @@ def main():
         ])
         assert shard_allocation_doc.validate_allocation()
 
-    print_shard_table([shard_allocation_doc for _, _, _, shard_allocation_doc in db_info])
+    print_shard_table([shard_allocation_doc for _, _, _, _, shard_allocation_doc in db_info])
 
 
 if __name__ == '__main__':
