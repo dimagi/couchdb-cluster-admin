@@ -130,10 +130,14 @@ def main():
                 suggested_allocation_by_db[db_name].append((nodes[node_allocation.i], shard_name))
 
     for db_name, _, _, _, shard_allocation_doc in db_info:
-        suggested_allocation = set(suggested_allocation_by_db[db_name])
-        current_allocation = {(node, shard)
-                              for shard, nodes in shard_allocation_doc.by_range.items()
-                              for node in nodes}
+        # have both a set for set operations and a list to preserve order
+        # preserving order is useful for presenting things back to the user
+        # based on the order they gave them
+        suggested_allocation = suggested_allocation_by_db[db_name]
+        suggested_allocation_set = set(suggested_allocation_by_db[db_name])
+        current_allocation_set = {(node, shard)
+                                  for shard, nodes in shard_allocation_doc.by_range.items()
+                                  for node in nodes}
         by_range = defaultdict(list)
         by_node = defaultdict(list)
         for node, shard in suggested_allocation:
@@ -143,11 +147,11 @@ def main():
         shard_allocation_doc.by_node = dict(by_node)
         shard_allocation_doc.changelog.extend([
             ["add", shard, node]
-            for node, shard in suggested_allocation - current_allocation
+            for node, shard in suggested_allocation_set - current_allocation_set
         ])
         shard_allocation_doc.changelog.extend([
             ["delete", shard, node]
-            for node, shard in current_allocation - suggested_allocation
+            for node, shard in current_allocation_set - suggested_allocation_set
         ])
         assert shard_allocation_doc.validate_allocation()
 
