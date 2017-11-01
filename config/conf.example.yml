@@ -1,0 +1,10 @@
+control_node_ip: 1.2.3.1
+control_node_port: 5984
+control_node_local_port: 5986
+username: admin
+
+aliases:
+  couchdb@1.2.3.1: couch1
+  couchdb@1.2.3.2: couch2
+  couchdb@1.2.3.3: couch3
+  couchdb@1.2.3.4: couch4

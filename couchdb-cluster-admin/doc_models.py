@@ -1,24 +1,37 @@
 from jsonobject import JsonObject, ListProperty, DictProperty, StringProperty
 
 
-class MembershipDoc(JsonObject):
+class ConfigInjectionMixin(object):
+    @property
+    def config(self):
+        from utils import Config
+        try:
+            return self._config
+        except AttributeError:
+            return Config()
+
+    def set_config(self, config):
+        if config:
+            self._config = config
+
+
+class MembershipDoc(ConfigInjectionMixin, JsonObject):
     _allow_dynamic_properties = False
 
     cluster_nodes = ListProperty(unicode, required=True)
     all_nodes = ListProperty(unicode, required=True)
 
     def get_printable(self):
-        from utils import strip_couchdb
         return (
             u"cluster_nodes:\t{all_nodes}\n"
             u"all_nodes:\t{cluster_nodes}"
         ).format(
-            cluster_nodes=u'\t'.join(map(strip_couchdb, self.cluster_nodes)),
-            all_nodes=u'\t'.join(map(strip_couchdb, self.all_nodes)),
+            cluster_nodes=u'\t'.join(map(self.config.format_node_name, self.cluster_nodes)),
+            all_nodes=u'\t'.join(map(self.config.format_node_name, self.all_nodes)),
         )
 
 
-class ShardAllocationDoc(JsonObject):
+class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
     _allow_dynamic_properties = False
 
     _id = StringProperty()
@@ -47,7 +60,7 @@ class ShardAllocationDoc(JsonObject):
 
         return pairs_from_by_node == pairs_from_by_range
 
-    def get_printable(self, include_shard_names=True):
+    def get_printable(self, include_shard_names=True, db_name_len=20):
         """
         Prints one row in a shard table
 
@@ -55,17 +68,18 @@ class ShardAllocationDoc(JsonObject):
         :return: a string to be printed out
         """
         parts = []
-        from utils import strip_couchdb
         if not self.validate_allocation():
             parts.append(self.db_name)
             parts.append(u"In this allocation by_node and by_range are inconsistent:", repr(self))
         else:
+            first_column = u'{{: <{}}}  '.format(db_name_len)
+            other_columns = u'{: ^17s}  '
             if include_shard_names:
-                parts.append(u'\t')
+                parts.append(first_column.format(u''))
                 for shard in sorted(self.by_range):
-                    parts.append(u'{}\t'.format(shard))
+                    parts.append(other_columns.format(shard))
                 parts.append(u'\n')
-            parts.append(u'{}\t'.format(self.db_name))
+            parts.append(first_column.format(self.db_name))
             for shard, nodes in sorted(self.by_range.items()):
-                parts.append(u'{}\t'.format(u','.join(map(strip_couchdb, nodes))))
+                parts.append(other_columns.format(u','.join(map(self.config.format_node_name, nodes))))
         return ''.join(parts)

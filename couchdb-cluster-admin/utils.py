@@ -1,9 +1,11 @@
 import argparse
 import getpass
 from collections import namedtuple
+from jsonobject import JsonObject, StringProperty, IntegerProperty, DictProperty
 
 import requests
 import time
+import yaml
 
 from doc_models import MembershipDoc, ShardAllocationDoc
 
@@ -42,12 +44,26 @@ def get_db_list(node_details, skip_private=True):
         return db_names
 
 
-def get_membership(node_details):
-    return MembershipDoc.wrap(do_couch_request(node_details, '_membership'))
+def get_membership(config):
+    if isinstance(config, NodeDetails):
+        node_details = config
+        config = None
+    else:
+        node_details = config.get_control_node()
+    membership_doc = MembershipDoc.wrap(do_couch_request(node_details, '_membership'))
+    membership_doc.set_config(config)
+    return membership_doc
 
 
-def get_shard_allocation(node_details, db_name):
-    return ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
+def get_shard_allocation(config, db_name):
+    if isinstance(config, NodeDetails):
+        node_details = config
+        config = None
+    else:
+        node_details = config.get_control_node()
+    shard_allocation_doc = ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
+    shard_allocation_doc.set_config(config)
+    return shard_allocation_doc
 
 
 def confirm(msg):
@@ -56,23 +72,63 @@ def confirm(msg):
 
 def get_arg_parser(command_description):
     parser = argparse.ArgumentParser(description=command_description)
-    parser.add_argument('--control-node-ip', dest='control_node_ip', required=True,
+    parser.add_argument('--conf', dest='conf')
+    parser.add_argument('--control-node-ip', dest='control_node_ip',
                         help='IP of an existing node in the cluster')
-    parser.add_argument('--username', dest='username', required=True,
+    parser.add_argument('--username', dest='username',
                         help='Admin username')
-    parser.add_argument('--control-node-port', dest='control_node_port', default=15984,
+    parser.add_argument('--control-node-port', dest='control_node_port', default=15984, type=int,
                         help='Port of control node. Default: 15984')
-    parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986,
+    parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986, type=int,
                         help='Port of control node for local operations. Default: 15986')
     return parser
 
 
+class Config(JsonObject):
+    control_node_ip = StringProperty()
+    control_node_port = IntegerProperty()
+    control_node_local_port = IntegerProperty()
+    username = StringProperty()
+    aliases = DictProperty(unicode)
+
+    def set_password(self, password):
+        self._password = password
+
+    def get_control_node(self):
+        return NodeDetails(
+            self.control_node_ip, self.control_node_port, self.control_node_local_port,
+            self.username, self._password
+        )
+
+    def format_node_name(self, node):
+        if node in self.aliases:
+            return self.aliases[node]
+        elif node.startswith('couchdb@'):
+            return node[len('couchdb@'):]
+        else:
+            return node
+
+
+def get_config_from_args(args):
+    if args.conf:
+        with open(args.conf) as f:
+            config = Config.wrap(yaml.load(f))
+    else:
+        config = Config(
+            control_node_ip=args.control_node_ip,
+            control_node_port=args.control_node_port,
+            control_node_local_port=args.control_node_local_port,
+            username=args.username,
+            aliases=None,
+        )
+
+    password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
+    config.set_password(password)
+    return config
+
+
 def node_details_from_args(args):
-    password = getpass.getpass('Password for "{}@{}":'.format(args.username, args.control_node_ip))
-    return NodeDetails(
-        args.control_node_ip, args.control_node_port, args.control_node_local_port,
-        args.username, password
-    )
+    return get_config_from_args(args).get_control_node()
 
 
 def add_node_to_cluster(node_details, new_node):
@@ -108,8 +164,3 @@ def is_node_in_cluster(node_details, node_to_check):
 def indent(text, n=1):
     padding = n * u'\t'
     return u''.join(padding + line for line in text.splitlines(True))
-
-
-def strip_couchdb(node):
-    if node.startswith('couchdb@'):
-        return node[len('couchdb@'):]
