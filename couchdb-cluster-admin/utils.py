@@ -24,7 +24,7 @@ def _do_request(node_details, path, port, method='get', params=None, json=None):
     response = requests.request(
         method=method,
         url="http://{}:{}/{}".format(node_details.ip, port, path),
-        auth=(node_details.username, node_details.password),
+        auth=(node_details.username, node_details.password) if node_details.username else None,
         params=params,
         json=json,
     )
@@ -136,7 +136,10 @@ def get_config_from_args(args):
             aliases=None,
         )
 
-    password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
+    if config.username:
+        password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
+    else:
+        password = None
     config.set_password(password)
     return config
 
