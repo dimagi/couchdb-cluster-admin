@@ -87,6 +87,11 @@ def confirm(msg):
 
 def get_arg_parser(command_description):
     parser = argparse.ArgumentParser(description=command_description)
+    set_up_parser(parser)
+    return parser
+
+
+def set_up_parser(parser):
     parser.add_argument('--conf', dest='conf')
     parser.add_argument('--control-node-ip', dest='control_node_ip',
                         help='IP of an existing node in the cluster')
@@ -96,7 +101,6 @@ def get_arg_parser(command_description):
                         help='Port of control node. Default: 15984')
     parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986, type=int,
                         help='Port of control node for local operations. Default: 15986')
-    return parser
 
 
 class Config(JsonObject):
