@@ -70,6 +70,16 @@ def get_shard_allocation(config, db_name):
     return shard_allocation_doc
 
 
+def put_shard_allocation(config, shard_allocation_doc):
+    node_details = config.get_control_node()
+    return do_node_local_request(
+        node_details,
+        '_dbs/{}'.format(shard_allocation_doc.db_name),
+        method='PUT',
+        json=shard_allocation_doc.to_json(),
+    )
+
+
 def confirm(msg):
     return raw_input(msg + "\n(y/n)") == 'y'
 
