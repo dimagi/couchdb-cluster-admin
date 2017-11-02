@@ -1,6 +1,7 @@
 import argparse
 import getpass
 from collections import namedtuple
+import os
 from jsonobject import JsonObject, StringProperty, IntegerProperty, DictProperty
 
 import requests
@@ -136,7 +137,9 @@ def get_config_from_args(args):
             aliases=None,
         )
 
-    if config.username:
+    if 'COUCHDB_CLUSTER_ADMIN_PASSWORD' in os.environ:
+        password = os.environ['COUCHDB_CLUSTER_ADMIN_PASSWORD']
+    elif config.username:
         password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
     else:
         password = None
