@@ -39,6 +39,21 @@ docker run --name couchdb-cluster \
 
 to start a cluster with 4 nodes. The nodes' data will be persisted to `./data`.
 
+# Optional: Set password in environment
+
+If you do not wish to specify your password every time you run a command,
+you may put its value in the `COUCHDB_CLUSTER_ADMIN_PASSWORD` environment variable like so:
+
+```
+read -sp Password: PW
+```
+
+Then, for all commands below prefex the command with `COUCHDB_CLUSTER_ADMIN_PASSWORD=$PW`, e.g.
+
+```
+COUCHDB_CLUSTER_ADMIN_PASSWORD=$PW python couchdb-admin-cluster/describe.py --conf mycluster.yml
+```
+
 # Get a quick overview of your cluster
 
 Now you can run
