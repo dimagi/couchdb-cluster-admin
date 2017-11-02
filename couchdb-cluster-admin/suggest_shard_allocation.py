@@ -119,10 +119,9 @@ def main():
                              'changing the live shard allocation.')
     args = parser.parse_args()
     config = get_config_from_args(args)
-    formal_name_lookup = {nickname: formal_name
-                          for formal_name, nickname in config.aliases.items()}
+
     allocation = [
-        ([formal_name_lookup[node] for node in nodes.split(',')], int(copies))
+        ([config.get_formal_node_name[node] for node in nodes.split(',')], int(copies))
         for nodes, copies in (group.split(':') for group in args.allocation)
     ]
     node_details = config.get_control_node()
