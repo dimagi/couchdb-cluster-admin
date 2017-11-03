@@ -121,7 +121,7 @@ def main():
     config = get_config_from_args(args)
 
     allocation = [
-        ([config.get_formal_node_name[node] for node in nodes.split(',')], int(copies))
+        ([config.get_formal_node_name(node) for node in nodes.split(',')], int(copies))
         for nodes, copies in (group.split(':') for group in args.allocation)
     ]
     node_details = config.get_control_node()
