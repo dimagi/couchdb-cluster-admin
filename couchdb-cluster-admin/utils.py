@@ -1,6 +1,7 @@
 import argparse
 import getpass
 from collections import namedtuple
+import os
 from jsonobject import JsonObject, StringProperty, IntegerProperty, DictProperty
 
 import requests
@@ -24,7 +25,7 @@ def _do_request(node_details, path, port, method='get', params=None, json=None):
     response = requests.request(
         method=method,
         url="http://{}:{}/{}".format(node_details.ip, port, path),
-        auth=(node_details.username, node_details.password),
+        auth=(node_details.username, node_details.password) if node_details.username else None,
         params=params,
         json=json,
     )
@@ -70,12 +71,27 @@ def get_shard_allocation(config, db_name):
     return shard_allocation_doc
 
 
+def put_shard_allocation(config, shard_allocation_doc):
+    node_details = config.get_control_node()
+    return do_node_local_request(
+        node_details,
+        '_dbs/{}'.format(shard_allocation_doc.db_name),
+        method='PUT',
+        json=shard_allocation_doc.to_json(),
+    )
+
+
 def confirm(msg):
     return raw_input(msg + "\n(y/n)") == 'y'
 
 
 def get_arg_parser(command_description):
     parser = argparse.ArgumentParser(description=command_description)
+    set_up_parser(parser)
+    return parser
+
+
+def set_up_parser(parser):
     parser.add_argument('--conf', dest='conf')
     parser.add_argument('--control-node-ip', dest='control_node_ip',
                         help='IP of an existing node in the cluster')
@@ -85,7 +101,6 @@ def get_arg_parser(command_description):
                         help='Port of control node. Default: 15984')
     parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986, type=int,
                         help='Port of control node for local operations. Default: 15986')
-    return parser
 
 
 class Config(JsonObject):
@@ -112,6 +127,14 @@ class Config(JsonObject):
         else:
             return node
 
+    def get_formal_node_name(self, node_nickname):
+        if not hasattr(self, '_formal_name_lookup'):
+            self._formal_name_lookup = {
+                nickname: formal_name
+                for formal_name, nickname in self.aliases.items()
+            }
+        return self._formal_name_lookup[node_nickname]
+
 
 def get_config_from_args(args):
     if args.conf:
@@ -126,7 +149,12 @@ def get_config_from_args(args):
             aliases=None,
         )
 
-    password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
+    if 'COUCHDB_CLUSTER_ADMIN_PASSWORD' in os.environ:
+        password = os.environ['COUCHDB_CLUSTER_ADMIN_PASSWORD']
+    elif config.username:
+        password = getpass.getpass('Password for "{}@{}":'.format(config.username, config.control_node_ip))
+    else:
+        password = None
     config.set_password(password)
     return config
 

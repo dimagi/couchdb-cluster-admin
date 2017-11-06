@@ -11,6 +11,49 @@ cp config/conf.example.yml config/mycluster.yml
 
 and then edit it with the details of your cluster.
 
+# Setting up a local cluster to test on
+
+If you have docker installed you can just run
+
+```bash
+docker build -t couchdb-cluster - < docker-couchdb-cluster/Dockerfile
+```
+
+to build the cluster image (based on klaemo/couchdb:2.0-dev) and then run
+
+```bash
+docker run --name couchdb-cluster \
+  -p 15984:15984 \
+  -p 15986:15986 \
+  -p 25984:25984 \
+  -p 25986:25986 \
+  -p 35984:35984 \
+  -p 35986:35986 \
+  -p 45984:45984 \
+  -p 45986:45986 \
+  -v $(pwd)/data:/usr/src/couchdb/dev/lib/ \
+  -t couchdb-cluster \
+  --with-admin-party-please \
+  -n 4
+```
+
+to start a cluster with 4 nodes. The nodes' data will be persisted to `./data`.
+
+# Optional: Set password in environment
+
+If you do not wish to specify your password every time you run a command,
+you may put its value in the `COUCHDB_CLUSTER_ADMIN_PASSWORD` environment variable like so:
+
+```
+read -sp Password: PW
+```
+
+Then, for all commands below prefex the command with `COUCHDB_CLUSTER_ADMIN_PASSWORD=$PW`, e.g.
+
+```
+COUCHDB_CLUSTER_ADMIN_PASSWORD=$PW python couchdb-admin-cluster/describe.py --conf mycluster.yml
+```
+
 # Get a quick overview of your cluster
 
 Now you can run
