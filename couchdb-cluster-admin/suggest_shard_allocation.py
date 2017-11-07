@@ -1,8 +1,10 @@
+import argparse
 from collections import namedtuple, defaultdict
 import json
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
     get_db_list, get_db_metadata, get_shard_allocation, do_couch_request, put_shard_allocation
 from describe import print_shard_table
+from file_plan import assemble_shard_allocations_from_plan, read_plan_file
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
@@ -105,28 +107,7 @@ def get_shard_sizes(db_info):
     ]
 
 
-def main():
-    parser = get_arg_parser(u'Suggest shard allocation for a cluster')
-    parser.add_argument('--allocate', dest='allocation', nargs="+", required=True,
-                        help='List of nodes and how many copies you want on them, '
-                             'like node1,node2,node3:<ncopies> [...]')
-
-    parser.add_argument('--save-plan', dest='plan_file', required=False,
-                        help='Save this plan to a file for use later.')
-
-    parser.add_argument('--commit-to-couchdb', dest='commit', action='store_true', required=False,
-                        help='Save the suggested allocation directly to couchdb, '
-                             'changing the live shard allocation.')
-    args = parser.parse_args()
-    config = get_config_from_args(args)
-
-    allocation = [
-        ([config.get_formal_node_name(node) for node in nodes.split(',')], int(copies))
-        for nodes, copies in (group.split(':') for group in args.allocation)
-    ]
-    node_details = config.get_control_node()
-    check_connection(node_details)
-
+def compute_shard_allocations(config, allocation):
     db_info = get_db_info(config)
 
     suggested_allocation_by_db = defaultdict(list)
@@ -165,10 +146,50 @@ def main():
             for node, shard in current_allocation_set - suggested_allocation_set
         ])
         assert shard_allocation_doc.validate_allocation()
+    return shard_allocations
+
+
+def main():
+    parser = get_arg_parser(u'Suggest shard allocation for a cluster')
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--allocate', dest='allocation', nargs="+",
+                       help='List of nodes and how many copies you want on them, '
+                            'like node1,node2,node3:<ncopies> [...]')
+
+    group.add_argument('--from-plan', dest='plan_file',
+                       help=u'Get target shard allocation from plan file.')
+
+    parser.add_argument('--save-plan', dest='save_to_plan_file', required=False,
+                        help='Save this plan to a file for use later.')
+
+    parser.add_argument('--commit-to-couchdb', dest='commit', action='store_true', required=False,
+                        help='Save the suggested allocation directly to couchdb, '
+                             'changing the live shard allocation.')
+    args = parser.parse_args()
+    config = get_config_from_args(args)
+
+    node_details = config.get_control_node()
+    check_connection(node_details)
+
+    if args.save_to_plan_file and args.plan_file:
+        # this probably isn't the intended use of this exception
+        # but makes it clear enough to the caller at this point.
+        raise argparse.ArgumentError(None, "You cannot use --save-plan with --from-plan.")
+
+    if args.allocation:
+        allocation = [
+            ([config.get_formal_node_name(node) for node in nodes.split(',')], int(copies))
+            for nodes, copies in (group.split(':') for group in args.allocation)
+        ]
+        shard_allocations = compute_shard_allocations(config, allocation)
+    else:
+        plan = read_plan_file(args.plan_file)
+        shard_allocations = assemble_shard_allocations_from_plan(config, plan)
 
     print_shard_table([shard_allocation_doc for shard_allocation_doc in shard_allocations])
 
-    if args.plan_file:
+    if args.save_to_plan_file:
         with open(args.plan_file, 'w') as f:
             json.dump({shard_allocation_doc.db_name: shard_allocation_doc.by_range
                        for shard_allocation_doc in shard_allocations}, f)
@@ -176,7 +197,6 @@ def main():
     if args.commit:
         for shard_allocation_doc in shard_allocations:
             print put_shard_allocation(config, shard_allocation_doc)
-
 
 
 if __name__ == '__main__':

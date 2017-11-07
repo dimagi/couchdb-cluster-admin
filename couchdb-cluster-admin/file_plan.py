@@ -51,9 +51,14 @@ def figure_out_what_you_can_and_cannot_delete(config, plan, shard_suffix_by_db_n
     return important_files_by_node, deletable_files_by_node
 
 
-def show_plan(config, plan):
+def assemble_shard_allocations_from_plan(config, plan):
     shard_allocation_docs = [get_shard_allocation(config, db_name) for db_name in plan]
     update_shard_allocation_docs_from_plan(shard_allocation_docs, plan)
+    return shard_allocation_docs
+
+
+def show_plan(config, plan):
+    shard_allocation_docs = assemble_shard_allocations_from_plan(config, plan)
     print_shard_table(shard_allocation_docs)
 
 
