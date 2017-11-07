@@ -209,7 +209,7 @@ def main():
     print_shard_table([shard_allocation_doc for shard_allocation_doc in shard_allocations])
 
     if args.save_to_plan_file:
-        with open(args.plan_file, 'w') as f:
+        with open(args.save_to_plan_file, 'w') as f:
             json.dump({shard_allocation_doc.db_name: shard_allocation_doc.by_range
                        for shard_allocation_doc in shard_allocations}, f)
 
