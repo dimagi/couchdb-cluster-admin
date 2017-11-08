@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 
 function setup {
-    db_name=test$(head -c 20 /dev/random | md5)
+    db_name=test$(head -n20 /dev/random | python -c 'import hashlib, sys; print hashlib.md5(sys.stdin.read()).hexdigest()')
     echo "PUT" $db_name
+    wait_for_couch_ping
     curl -sX PUT http://localhost:15984/${db_name}
 }
 
