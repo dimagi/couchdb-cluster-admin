@@ -63,10 +63,10 @@ function wait_for_couch_ping {
     run rsync_files node1 node3 && [ "$status" = '23' ]
     run rsync_files node1 node4 && [ "$status" = '23' ]
 
-#    python couchdb-cluster-admin/suggest_shard_allocation.py --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
+    python couchdb-cluster-admin/suggest_shard_allocation.py --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
 
-#    echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-#    [ "$(doccount)" = '10' ]
+    echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
+    [ "$(doccount)" = '10' ]
 #    echo $(longform_doccount) $(longform_doccount) $(longform_doccount)
 #    [ "$(longform_doccount)" = '10' ]
 }
