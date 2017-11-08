@@ -59,9 +59,9 @@ function wait_for_couch_ping {
 
     wait_for_couch_ping
 
-#    run rsync_files node1 node2 && [ "$status" = '23' ]
-#    run rsync_files node1 node3 && [ "$status" = '23' ]
-#    run rsync_files node1 node4 && [ "$status" = '23' ]
+    run rsync_files node1 node2 && [ "$status" = '23' ]
+    run rsync_files node1 node3 && [ "$status" = '23' ]
+    run rsync_files node1 node4 && [ "$status" = '23' ]
 
 #    python couchdb-cluster-admin/suggest_shard_allocation.py --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
 
