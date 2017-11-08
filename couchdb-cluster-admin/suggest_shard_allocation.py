@@ -68,13 +68,13 @@ def get_db_info(config):
         for view_name in get_views_list(node_details, db_name):
             # _gather_view_size(db_name, view_name)
             subprocesses.append(gevent.spawn(_gather_view_size, db_name, view_name))
-        gevent.joinall(subprocesses)
+        gevent.joinall(subprocesses, raise_error=True)
 
     processes.extend([gevent.spawn(_gather_view_sizes, db_name) for db_name in db_names])
     processes.extend([gevent.spawn(_gather_db_size, db_name) for db_name in db_names])
     processes.extend([gevent.spawn(_gather_db_shard_names, db_name) for db_name in db_names])
 
-    gevent.joinall(processes)
+    gevent.joinall(processes, raise_error=True)
 
     view_sizes = {db_name: {name: size for name, size in view_sizes[db_name].values()}
                   for db_name in db_names}
