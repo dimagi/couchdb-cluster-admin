@@ -2,6 +2,8 @@
 !/config/conf.example.yml
 /plans
 /data
+test/local.plan.json
+test/*.files.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
