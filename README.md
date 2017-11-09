@@ -3,7 +3,7 @@ utility for managing multi-node couchdb 2.x clusters
 
 # First, put together a config file for your setup
 
-This will make the rest of the commcands simpler to run. Copy the example
+This will make the rest of the commands simpler to run. Copy the example
 
 ```
 cp config/conf.example.yml config/mycluster.yml
@@ -38,6 +38,21 @@ docker run --name couchdb-cluster \
 ```
 
 to start a cluster with 4 nodes. The nodes' data will be persisted to `./data`.
+
+To run the tests (which require this docker setup), download and install https://github.com/sstephenson/bats
+
+```bash
+git clone https://github.com/sstephenson/bats.git
+cd bats
+./install.sh /usr/local  # or wherever on your PATH you want to install this
+```
+
+and then
+
+```bash
+docker start couchdb-cluster  # make sure this is running and localhost:15984 is receiving pings
+bats test/
+```
 
 # Optional: Set password in environment
 
