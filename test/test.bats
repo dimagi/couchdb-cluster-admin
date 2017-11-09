@@ -67,8 +67,8 @@ function wait_for_couch_ping {
 
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
     [ "$(doccount)" = '10' ]
-#    echo $(longform_doccount) $(longform_doccount) $(longform_doccount)
-#    [ "$(longform_doccount)" = '10' ]
+    echo $(longform_doccount) $(longform_doccount) $(longform_doccount)
+    [ "$(longform_doccount)" = '10' ]
 }
 
 function teardown {
