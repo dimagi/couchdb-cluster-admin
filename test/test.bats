@@ -75,7 +75,7 @@ function teardown {
     echo "DELETE" $db_name
     curl -sX DELETE http://localhost:15984/${db_name}
     rm test/local.plan.json
-	rm test/node2.files.txt
-	rm test/node3.files.txt
-	rm test/node4.files.txt
+    rm test/node2.files.txt
+    rm test/node3.files.txt
+    rm test/node4.files.txt
 }
