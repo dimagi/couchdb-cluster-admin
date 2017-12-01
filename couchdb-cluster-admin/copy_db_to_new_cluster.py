@@ -64,18 +64,24 @@ if __name__ == '__main__':
     parser.add_argument('--to-username', dest='to_username',
                         help='Admin username for "to" cluster (defaults to the same as "from-username"')
     parser.add_argument('--database', dest='database', help='Database to copy or "ALL"')
+    parser.add_argument('--socks', dest='socks', help='Port of local socks proxy to use for '
+                                                      'communication with the "from" cluster')
     args = parser.parse_args()
 
-    print args.to_nodes
+    if args.socks:
+        try:
+            import socks
+        except ImportError:
+            print("PySocks required for using a socks proxy. Please run 'pip install requests[socks]'")
 
     from_password = getpass.getpass('Password for "{}@{}"'.format(args.from_username, args.from_ip))
-    from_details = NodeDetails(args.from_ip, 15984, 15986, args.from_username, from_password)
+    from_details = NodeDetails(args.from_ip, 15984, 15986, args.from_username, from_password, args.socks)
     check_connection(from_details)
 
     to_username = args.to_username or args.from_username
     to_password = getpass.getpass('Password for "{}@{}"'.format(to_username, args.to_nodes[0]))
     to_details = [
-        NodeDetails(node_ip, 15984, 15986, to_username, to_password)
+        NodeDetails(node_ip, 15984, 15986, to_username, to_password, None)
         for node_ip in args.to_nodes
     ]
     for details in to_details:

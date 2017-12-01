@@ -10,7 +10,7 @@ import yaml
 
 from doc_models import MembershipDoc, ShardAllocationDoc
 
-NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port username password')
+NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port username password socks_port')
 
 
 def do_couch_request(node_details, path, method='get', params=None, json=None):
@@ -22,12 +22,19 @@ def do_node_local_request(node_details, path, method='get', params=None, json=No
 
 
 def _do_request(node_details, path, port, method='get', params=None, json=None):
+    proxies = {}
+    if node_details.socks_port:
+        proxy = 'socks5://localhost:%s' % port
+        proxies['http'] = proxy
+        proxies['https'] = proxy
+
     response = requests.request(
         method=method,
         url="http://{}:{}/{}".format(node_details.ip, port, path),
         auth=(node_details.username, node_details.password) if node_details.username else None,
         params=params,
         json=json,
+        proxies=proxies
     )
     response.raise_for_status()
     return response.json()
@@ -116,7 +123,7 @@ class Config(JsonObject):
     def get_control_node(self):
         return NodeDetails(
             self.control_node_ip, self.control_node_port, self.control_node_local_port,
-            self.username, self._password
+            self.username, self._password, None
         )
 
     def format_node_name(self, node):
