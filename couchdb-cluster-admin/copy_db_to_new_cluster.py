@@ -64,7 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('--to-username', dest='to_username',
                         help='Admin username for "to" cluster (defaults to the same as "from-username"')
     parser.add_argument('--database', dest='database', help='Database to copy or "ALL"')
-    parser.add_argument('--socks', dest='socks', help='Use a socks proxy at given port for '
+    parser.add_argument('--socks', dest='socks', help='Port of local socks proxy to use for '
                                                       'communication with the "from" cluster')
     args = parser.parse_args()
 
