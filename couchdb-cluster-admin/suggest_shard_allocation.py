@@ -158,8 +158,11 @@ def apply_suggested_allocation(shard_allocations, plan):
             ["delete", shard, node]
             for node, shard in current_allocation_set - suggested_allocation_set
         ])
-        if not shard_allocation_doc.shard_suffix:
+        if shard_allocation_doc.shard_suffix:
+            assert shard_allocation_doc.shard_suffix ==  suggested_allocation.shard_suffix
+        else:
             shard_allocation_doc.shard_suffix = suggested_allocation.shard_suffix
+
         assert shard_allocation_doc.validate_allocation()
     return shard_allocations
 
