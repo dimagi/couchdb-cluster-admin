@@ -1,3 +1,4 @@
+from collections import defaultdict
 from jsonobject import JsonObject, ListProperty, DictProperty, StringProperty
 
 
@@ -49,6 +50,36 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
     @property
     def db_name(self):
         return self._id
+
+    def to_plan_json(self):
+        return {
+            'by_range': self.by_range,
+            'shard_suffix': self.usable_shard_suffix
+        }
+
+    @classmethod
+    def from_plan_json(self, db_name, plan_json):
+        shard_suffix = [ord(c) for c in plan_json['shard_suffix']]
+        doc = ShardAllocationDoc(_id=db_name, shard_suffix=shard_suffix)
+        doc.populate_from_range(plan_json['by_range'])
+        return doc
+
+    def populate_from_range(self, by_range):
+        self.by_range = by_range
+        self.by_node = self._populate_other(by_range)
+        assert self.validate_allocation()
+
+    def populate_from_nodes(self, by_node):
+        self.by_node = by_node
+        self.by_range = self._populate_other(by_node)
+        self.validate_allocation()
+
+    def _populate_other(self, by_item):
+        by_other = defaultdict(list)
+        for key, values in by_item.items():
+            for value in values:
+                by_other[value].append(key)
+        return dict(by_other)
 
     def validate_allocation(self):
         pairs_from_by_node = {(node, shard)

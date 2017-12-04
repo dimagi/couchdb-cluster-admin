@@ -3,12 +3,17 @@ from collections import defaultdict
 import json
 from utils import get_config_from_args, get_shard_allocation, set_up_parser
 from describe import print_shard_table
+from doc_models import ShardAllocationDoc
 
 
 def read_plan_file(filename):
     with open(filename) as f:
-        return json.load(f)
+        plan = json.load(f)
 
+    return {
+        db_name: ShardAllocationDoc.from_plan_json(db_name, plan_json)
+        for db_name, plan_json in plan.items()
+    }
 
 def update_shard_allocation_docs_from_plan(shard_allocation_docs, plan):
     shard_allocation_docs = {shard_allocation_doc.db_name: shard_allocation_doc

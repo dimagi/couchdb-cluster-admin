@@ -5,6 +5,7 @@ from utils import humansize, get_arg_parser, get_config_from_args, check_connect
     get_db_list, get_db_metadata, get_shard_allocation, do_couch_request, put_shard_allocation
 from describe import print_shard_table
 from file_plan import read_plan_file
+from doc_models import ShardAllocationDoc
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
@@ -114,38 +115,41 @@ def make_suggested_allocation_by_db(config, db_info, allocation):
             print "{}\t{}".format(config.format_node_name(nodes[node_allocation.i]), humansize(node_allocation.size[0]))
             for shard_name, db_name in node_allocation.shards:
                 suggested_allocation_by_db[db_name].append((nodes[node_allocation.i], shard_name))
-    return suggested_allocation_by_db
+
+    shard_allocations_docs = {
+        db_name: shard_allocation_doc
+        for db_name, _, _, _, shard_allocation_doc in db_info
+    }
+
+    suggested_allocation_docs_by_db = {}
+    for db_name, allocation in suggested_allocation_by_db.items():
+        by_range = defaultdict(list)
+        for node, shard in allocation:
+            by_range[shard].append(node)
+
+        doc = ShardAllocationDoc(_id=db_name, shard_suffix=shard_allocations_docs[db_name].shard_suffix)
+        doc.populate_from_range(by_range)
+        suggested_allocation_docs_by_db[db_name] = doc
+    return suggested_allocation_docs_by_db
 
 
-def get_suggested_allocation_by_db_from_plan(plan):
-    suggested_allocation_by_db = defaultdict(list)
-    for db_name, by_range in plan.items():
-        for shard_name, nodes in by_range.items():
-            for node in nodes:
-                suggested_allocation_by_db[db_name].append((node, shard_name))
-    return suggested_allocation_by_db
-
-
-def apply_suggested_allocation(shard_allocations, suggested_allocation_by_db):
+def apply_suggested_allocation(shard_allocations, plan):
 
     for shard_allocation_doc in shard_allocations:
         # have both a set for set operations and a list to preserve order
         # preserving order is useful for presenting things back to the user
         # based on the order they gave them
         db_name = shard_allocation_doc.db_name
-        suggested_allocation = suggested_allocation_by_db[db_name]
-        suggested_allocation_set = set(suggested_allocation_by_db[db_name])
-        assert len(suggested_allocation) == len(suggested_allocation_set)
+        suggested_allocation = plan[db_name]
+        assert suggested_allocation.validate_allocation()
+        suggested_allocation_set = {(node, shard)
+                                    for shard, nodes in suggested_allocation.by_range.items()
+                                    for node in nodes}
         current_allocation_set = {(node, shard)
                                   for shard, nodes in shard_allocation_doc.by_range.items()
                                   for node in nodes}
-        by_range = defaultdict(list)
-        by_node = defaultdict(list)
-        for node, shard in suggested_allocation:
-            by_range[shard].append(node)
-            by_node[node].append(shard)
-        shard_allocation_doc.by_range = dict(by_range)
-        shard_allocation_doc.by_node = dict(by_node)
+        shard_allocation_doc.by_range = suggested_allocation.by_range
+        shard_allocation_doc.by_node = suggested_allocation.by_node
         shard_allocation_doc.changelog.extend([
             ["add", shard, node]
             for node, shard in suggested_allocation_set - current_allocation_set
@@ -154,6 +158,8 @@ def apply_suggested_allocation(shard_allocations, suggested_allocation_by_db):
             ["delete", shard, node]
             for node, shard in current_allocation_set - suggested_allocation_set
         ])
+        if not shard_allocation_doc.shard_suffix:
+            shard_allocation_doc.shard_suffix = suggested_allocation.shard_suffix
         assert shard_allocation_doc.validate_allocation()
     return shard_allocations
 
@@ -202,15 +208,14 @@ def main():
         plan = read_plan_file(args.plan_file)
         shard_allocations_docs = [get_shard_allocation(config, db_name) for db_name in plan]
         shard_allocations = apply_suggested_allocation(
-            shard_allocations_docs,
-            get_suggested_allocation_by_db_from_plan(plan)
+            shard_allocations_docs, plan
         )
 
     print_shard_table([shard_allocation_doc for shard_allocation_doc in shard_allocations])
 
     if args.save_to_plan_file:
         with open(args.save_to_plan_file, 'w') as f:
-            json.dump({shard_allocation_doc.db_name: shard_allocation_doc.by_range
+            json.dump({shard_allocation_doc.db_name: shard_allocation_doc.to_plan_json()
                        for shard_allocation_doc in shard_allocations}, f)
 
     if args.commit:
