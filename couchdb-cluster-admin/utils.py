@@ -7,6 +7,7 @@ from jsonobject import JsonObject, StringProperty, IntegerProperty, DictProperty
 import requests
 import time
 import yaml
+from requests import HTTPError
 
 from doc_models import MembershipDoc, ShardAllocationDoc
 
@@ -73,7 +74,14 @@ def get_shard_allocation(config, db_name):
         config = None
     else:
         node_details = config.get_control_node()
-    shard_allocation_doc = ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
+    try:
+        shard_allocation_doc = ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            shard_allocation_doc = ShardAllocationDoc(_id=db_name)
+        else:
+            raise
+
     shard_allocation_doc.set_config(config)
     return shard_allocation_doc
 
