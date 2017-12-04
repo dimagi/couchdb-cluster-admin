@@ -68,7 +68,7 @@ def get_membership(config):
     return membership_doc
 
 
-def get_shard_allocation(config, db_name):
+def get_shard_allocation(config, db_name, create=False):
     if isinstance(config, NodeDetails):
         node_details = config
         config = None
@@ -78,7 +78,11 @@ def get_shard_allocation(config, db_name):
         shard_allocation_doc = ShardAllocationDoc.wrap(do_node_local_request(node_details, '_dbs/{}'.format(db_name)))
     except HTTPError as e:
         if e.response.status_code == 404:
-            shard_allocation_doc = ShardAllocationDoc(_id=db_name)
+            if create:
+                shard_allocation_doc = ShardAllocationDoc(_id=db_name)
+            else:
+                raise Exception('Database "{}" does not exist. Use "--create-missing-databases" flag if you want'
+                                ' to have the database created when the plan is committed.'.format(db_name))
         else:
             raise
 

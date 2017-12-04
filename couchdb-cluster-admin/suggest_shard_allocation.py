@@ -184,6 +184,10 @@ def main():
     parser.add_argument('--commit-to-couchdb', dest='commit', action='store_true', required=False,
                         help='Save the suggested allocation directly to couchdb, '
                              'changing the live shard allocation.')
+
+    parser.add_argument('--create-missing-databases', dest='create', action='store_true', required=False,
+                        help="Create databases in the cluster if they don't exist.")
+
     args = parser.parse_args()
     config = get_config_from_args(args)
 
@@ -209,7 +213,7 @@ def main():
         )
     else:
         plan = read_plan_file(args.plan_file)
-        shard_allocations_docs = [get_shard_allocation(config, db_name) for db_name in plan]
+        shard_allocations_docs = [get_shard_allocation(config, db_name, args.create) for db_name in plan]
         shard_allocations = apply_suggested_allocation(
             shard_allocations_docs, plan
         )
