@@ -15,15 +15,15 @@ def read_plan_file(filename):
         for db_name, plan_json in plan.items()
     }
 
-def update_shard_allocation_docs_from_plan(shard_allocation_docs, plan):
-    shard_allocation_docs = {shard_allocation_doc.db_name: shard_allocation_doc
-                             for shard_allocation_doc in shard_allocation_docs}
-    for db_name, allocation_doc in sorted(plan.items()):
-        shard_allocation_doc = shard_allocation_docs[db_name]
-        shard_allocation_doc.by_range = allocation_doc.by_range
-        shard_allocation_doc.by_node = allocation_doc.by_node
+def update_shard_allocation_docs_from_plan(cluster_allocation_doc, plan):
+    cluster_allocation_doc = {shard_allocation_doc.db_name: shard_allocation_doc
+                              for shard_allocation_doc in cluster_allocation_doc}
+    for db_name, plan_allocation_doc in sorted(plan.items()):
+        shard_allocation_doc = cluster_allocation_doc[db_name]
+        shard_allocation_doc.by_range = plan_allocation_doc.by_range
+        shard_allocation_doc.by_node = plan_allocation_doc.by_node
         assert shard_allocation_doc.validate_allocation()
-    return shard_allocation_docs
+    return cluster_allocation_doc
 
 
 def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None):
@@ -31,9 +31,9 @@ def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None
         shard_suffix_by_db_name = defaultdict(lambda: '.*')
     all_files = set()
     important_files_by_node = defaultdict(set)
-    for db_name, allocation_doc in plan.items():
+    for db_name, plan_allocation_doc in plan.items():
         shard_suffix = shard_suffix_by_db_name.get(db_name, None)
-        for shard, nodes in allocation_doc.by_range.items():
+        for shard, nodes in plan_allocation_doc.by_range.items():
             for node in nodes:
                 couch_file = 'shards/{shard}/{db_name}{shard_suffix}.couch'.format(
                     shard=shard, db_name=db_name, shard_suffix=shard_suffix)
@@ -60,21 +60,21 @@ def assemble_shard_allocations_from_plan(config, plan):
 
 
 def show_plan(config, plan):
-    shard_allocation_docs = plan.values()
-    for doc in shard_allocation_docs:
+    plan_allocation_docs = plan.values()
+    for doc in plan_allocation_docs:
         doc.set_config(config)
-    print_shard_table(shard_allocation_docs)
+    print_shard_table(plan_allocation_docs)
 
 
 def _get_shard_suffixes(config, plan):
     shard_suffix_by_db_name = {}
-    for db_name, planed_allocation in plan.items():
-        db_allocation = get_shard_allocation(config, db_name)
+    for db_name, plan_allocation_doc in plan.items():
+        cluster_allocation_doc = get_shard_allocation(config, db_name)
 
-        if planed_allocation.shard_suffix:
-            assert db_allocation.shard_suffix == planed_allocation.shard_suffix
+        if plan_allocation_doc.shard_suffix:
+            assert cluster_allocation_doc.shard_suffix == plan_allocation_doc.shard_suffix
 
-        shard_suffix_by_db_name[db_name] = db_allocation.usable_shard_suffix
+        shard_suffix_by_db_name[db_name] = cluster_allocation_doc.usable_shard_suffix
 
     return shard_suffix_by_db_name
 
