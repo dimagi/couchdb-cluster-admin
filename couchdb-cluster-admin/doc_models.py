@@ -35,7 +35,7 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
     _allow_dynamic_properties = False
 
     _id = StringProperty()
-    _rev = StringProperty()
+    _rev = StringProperty(exclude_if_none=True)
 
     by_node = DictProperty(ListProperty(unicode), required=True)
     changelog = ListProperty(ListProperty(unicode), required=True)
