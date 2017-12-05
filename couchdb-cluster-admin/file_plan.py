@@ -3,40 +3,42 @@ from collections import defaultdict
 import json
 from utils import get_config_from_args, get_shard_allocation, set_up_parser
 from describe import print_shard_table
+from doc_models import ShardAllocationDoc
 
 
 def read_plan_file(filename):
     with open(filename) as f:
-        return json.load(f)
+        plan = json.load(f)
 
+    return {
+        db_name: ShardAllocationDoc.from_plan_json(db_name, plan_json)
+        for db_name, plan_json in plan.items()
+    }
 
-def update_shard_allocation_docs_from_plan(shard_allocation_docs, plan):
-    shard_allocation_docs = {shard_allocation_doc.db_name: shard_allocation_doc
-                             for shard_allocation_doc in shard_allocation_docs}
-    for db_name, by_range in sorted(plan.items()):
-        shard_allocation_doc = shard_allocation_docs[db_name]
-        by_node = defaultdict(list)
-        for shard, nodes in by_range.items():
-            for node in nodes:
-                by_node[node].append(shard)
-        shard_allocation_doc.by_range = by_range
-        shard_allocation_doc.by_node = by_node
+def update_shard_allocation_docs_from_plan(cluster_allocation_doc, plan):
+    cluster_allocation_doc = {shard_allocation_doc.db_name: shard_allocation_doc
+                              for shard_allocation_doc in cluster_allocation_doc}
+    for db_name, plan_allocation_doc in sorted(plan.items()):
+        shard_allocation_doc = cluster_allocation_doc[db_name]
+        shard_allocation_doc.by_range = plan_allocation_doc.by_range
+        shard_allocation_doc.by_node = plan_allocation_doc.by_node
         assert shard_allocation_doc.validate_allocation()
-    return shard_allocation_docs
+    return cluster_allocation_doc
 
 
-def figure_out_what_you_can_and_cannot_delete(config, plan, shard_suffix_by_db_name=None):
-    if shard_suffix_by_db_name is None:
+def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None):
+    if not shard_suffix_by_db_name:
         shard_suffix_by_db_name = defaultdict(lambda: '.*')
     all_files = set()
     important_files_by_node = defaultdict(set)
-    for db_name, by_range in plan.items():
-        for shard, nodes in by_range.items():
+    for db_name, plan_allocation_doc in plan.items():
+        shard_suffix = shard_suffix_by_db_name.get(db_name, None)
+        for shard, nodes in plan_allocation_doc.by_range.items():
             for node in nodes:
                 couch_file = 'shards/{shard}/{db_name}{shard_suffix}.couch'.format(
-                    shard=shard, db_name=db_name, shard_suffix=shard_suffix_by_db_name[db_name])
+                    shard=shard, db_name=db_name, shard_suffix=shard_suffix)
                 view_file = '.shards/{shard}/{db_name}{shard_suffix}_design'.format(
-                    shard=shard, db_name=db_name, shard_suffix=shard_suffix_by_db_name[db_name])
+                    shard=shard, db_name=db_name, shard_suffix=shard_suffix)
 
                 important_files_by_node[node].add(couch_file)
                 all_files.add(couch_file)
@@ -58,24 +60,35 @@ def assemble_shard_allocations_from_plan(config, plan):
 
 
 def show_plan(config, plan):
-    shard_allocation_docs = assemble_shard_allocations_from_plan(config, plan)
-    print_shard_table(shard_allocation_docs)
+    plan_allocation_docs = plan.values()
+    for doc in plan_allocation_docs:
+        doc.set_config(config)
+    print_shard_table(plan_allocation_docs)
+
+
+def _get_shard_suffixes(config, plan):
+    shard_suffix_by_db_name = {}
+    for db_name, plan_allocation_doc in plan.items():
+        cluster_allocation_doc = get_shard_allocation(config, db_name)
+
+        if plan_allocation_doc.shard_suffix:
+            assert cluster_allocation_doc.shard_suffix == plan_allocation_doc.shard_suffix
+
+        shard_suffix_by_db_name[db_name] = cluster_allocation_doc.usable_shard_suffix
+
+    return shard_suffix_by_db_name
 
 
 def run_plan_prune(config, plan, node):
     _, deletable_files_by_node = figure_out_what_you_can_and_cannot_delete(
-        config, plan, shard_allocation_docs)
+        plan, _get_shard_suffixes(config, plan))
     for filename in sorted(deletable_files_by_node[node]):
         print filename
 
 
 def run_important_plan(config, plan, node):
-    shard_suffix_by_db_name = {
-        db_name: get_shard_allocation(config, db_name).usable_shard_suffix
-        for db_name in plan
-    }
     important_files_by_node, _ = figure_out_what_you_can_and_cannot_delete(
-        config, plan, shard_suffix_by_db_name)
+        plan, _get_shard_suffixes(config, plan))
     for filename in sorted(important_files_by_node[node]):
         print filename
 
