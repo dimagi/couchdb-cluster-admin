@@ -66,7 +66,7 @@ def show_plan(config, plan):
     print_shard_table(plan_allocation_docs)
 
 
-def get_shard_suffixes(config, plan, validate_against_db=True):
+def _get_shard_suffixes(config, plan, validate_against_db=True):
     shard_suffix_by_db_name = {}
     for db_name, plan_allocation_doc in plan.items():
         if validate_against_db:
@@ -84,7 +84,7 @@ def get_shard_suffixes(config, plan, validate_against_db=True):
 
 def run_plan_prune(config, plan, node):
     _, deletable_files_by_node = figure_out_what_you_can_and_cannot_delete(
-        plan, get_shard_suffixes(config, plan))
+        plan, _get_shard_suffixes(config, plan))
     for filename in sorted(deletable_files_by_node[node]):
         print filename
 
@@ -97,7 +97,7 @@ def run_important_plan(config, plan, node):
 
 def get_important_files(config, plan, validate_suffixes=True):
     important_files_by_node, _ = figure_out_what_you_can_and_cannot_delete(
-        plan, get_shard_suffixes(config, plan, validate_suffixes))
+        plan, _get_shard_suffixes(config, plan, validate_suffixes))
     return important_files_by_node
 
 
