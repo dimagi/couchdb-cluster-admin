@@ -81,6 +81,12 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
                 by_other[value].append(key)
         return dict(by_other)
 
+    def get_node_list(self):
+        return list({node for node, shards in self.by_node.items()})
+
+    def get_host_list(self):
+        return [node.split('@')[1] for node in self.get_node_list()]
+
     def validate_allocation(self):
         pairs_from_by_node = {(node, shard)
                               for node, shards in self.by_node.items()

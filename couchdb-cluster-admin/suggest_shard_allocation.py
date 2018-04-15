@@ -200,23 +200,11 @@ def main():
         raise argparse.ArgumentError(None, "You cannot use --save-plan with --from-plan.")
 
     if args.allocation:
-        db_info = get_db_info(config)
-        shard_allocations_docs = [shard_allocation_doc
-                                  for _, _, _, _, shard_allocation_doc in db_info]
-        allocation = [
-            ([config.get_formal_node_name(node) for node in nodes.split(',')], int(copies))
-            for nodes, copies in (group.split(':') for group in args.allocation)
-        ]
-        shard_allocations = apply_suggested_allocation(
-            shard_allocations_docs,
-            make_suggested_allocation_by_db(config, db_info, allocation)
-        )
+        shard_allocations = generate_shard_allocation(config, args.allocation)
     else:
         plan = read_plan_file(args.plan_file)
-        shard_allocations_docs = [get_shard_allocation(config, db_name, args.create) for db_name in plan]
-        shard_allocations = apply_suggested_allocation(
-            shard_allocations_docs, plan
-        )
+        create = args.create
+        shard_allocations = get_shard_allocation_from_plan(config, plan, create)
 
     print_shard_table([shard_allocation_doc for shard_allocation_doc in shard_allocations])
 
@@ -228,6 +216,29 @@ def main():
     if args.commit:
         for shard_allocation_doc in shard_allocations:
             print put_shard_allocation(config, shard_allocation_doc)
+
+
+def get_shard_allocation_from_plan(config, plan, create=False):
+    shard_allocations_docs = [get_shard_allocation(config, db_name, create) for db_name in plan]
+    shard_allocations = apply_suggested_allocation(
+        shard_allocations_docs, plan
+    )
+    return shard_allocations
+
+
+def generate_shard_allocation(config, allocation):
+    db_info = get_db_info(config)
+    shard_allocations_docs = [shard_allocation_doc
+                              for _, _, _, _, shard_allocation_doc in db_info]
+    allocation = [
+        ([config.get_formal_node_name(node) for node in nodes.split(',')], int(copies))
+        for nodes, copies in (group.split(':') for group in allocation)
+    ]
+    shard_allocations = apply_suggested_allocation(
+        shard_allocations_docs,
+        make_suggested_allocation_by_db(config, db_info, allocation)
+    )
+    return shard_allocations
 
 
 if __name__ == '__main__':

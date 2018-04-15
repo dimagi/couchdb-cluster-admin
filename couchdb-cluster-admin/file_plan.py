@@ -66,13 +66,16 @@ def show_plan(config, plan):
     print_shard_table(plan_allocation_docs)
 
 
-def _get_shard_suffixes(config, plan):
+def _get_shard_suffixes(config, plan, validate_against_db=True):
     shard_suffix_by_db_name = {}
     for db_name, plan_allocation_doc in plan.items():
-        cluster_allocation_doc = get_shard_allocation(config, db_name)
+        if validate_against_db:
+            cluster_allocation_doc = get_shard_allocation(config, db_name)
 
-        if plan_allocation_doc.shard_suffix:
-            assert cluster_allocation_doc.shard_suffix == plan_allocation_doc.shard_suffix
+            if plan_allocation_doc.shard_suffix:
+                assert cluster_allocation_doc.shard_suffix == plan_allocation_doc.shard_suffix
+        else:
+            cluster_allocation_doc = plan_allocation_doc
 
         shard_suffix_by_db_name[db_name] = cluster_allocation_doc.usable_shard_suffix
 
@@ -87,10 +90,15 @@ def run_plan_prune(config, plan, node):
 
 
 def run_important_plan(config, plan, node):
-    important_files_by_node, _ = figure_out_what_you_can_and_cannot_delete(
-        plan, _get_shard_suffixes(config, plan))
+    important_files_by_node = get_important_files(config, plan)
     for filename in sorted(important_files_by_node[node]):
         print filename
+
+
+def get_important_files(config, plan, validate_suffixes=True):
+    important_files_by_node, _ = figure_out_what_you_can_and_cannot_delete(
+        plan, _get_shard_suffixes(config, plan, validate_suffixes))
+    return important_files_by_node
 
 
 def main():
