@@ -28,7 +28,7 @@ def read_md(filename):
 
 setup(
     name='couchdb-cluster-admin',
-    version=get_version('couchdb-cluster-admin/__init__.py'),
+    version=get_version('couchdb_cluster_admin/__init__.py'),
     description='Utility for managing multi-node couchdb 2.x clusters',
     long_description=read_md('README.md'),
     maintainer='Dimagi',
