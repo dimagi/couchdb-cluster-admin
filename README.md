@@ -74,7 +74,7 @@ COUCHDB_CLUSTER_ADMIN_PASSWORD=$PW python couchdb-admin-cluster/describe.py --co
 Now you can run
 
 ```
-python couchdb-cluster-admin/describe.py --conf config/mycluster.yml
+python couchdb_cluster_admin/describe.py --conf config/mycluster.yml
 ```
 
 to see an overview of your cluster nodes and shard allocation.
@@ -98,7 +98,7 @@ all shards are currently assigned only to the first node.
 In order to plan out a shard reallocation, you can run the following command:
 
 ```bash
-python couchdb-cluster-admin/suggest_shard_allocation.py --conf config/mycluster.yml --allocate couch1:1 couch2,couch3,couch4:2
+python couchdb_cluster_admin/suggest_shard_allocation.py --conf config/mycluster.yml --allocate couch1:1 couch2,couch3,couch4:2
 ```
 
 The values for the `--allocate` arg in the example above should be interpreted as
