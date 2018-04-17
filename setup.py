@@ -26,9 +26,18 @@ def read_md(filename):
             return handle.read()
 
 
+def read_requirements(filename):
+    path = os.path.join(os.path.dirname(__file__), filename)
+    with open(path, encoding="utf-8") as handle:
+        content = handle.readlines()
+    return [
+        line.strip() for line in content if not line.startswith('#')
+    ]
+
+
 setup(
     name='couchdb-cluster-admin',
-    version=get_version('couchdb-cluster-admin/__init__.py'),
+    version=get_version('couchdb_cluster_admin/__init__.py'),
     description='Utility for managing multi-node couchdb 2.x clusters',
     long_description=read_md('README.md'),
     maintainer='Dimagi',
@@ -37,6 +46,7 @@ setup(
     license='BSD License',
     packages=find_packages(exclude=['tests']),
     include_package_data=True,
+    install_requires=read_requirements('requirements.txt'),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',

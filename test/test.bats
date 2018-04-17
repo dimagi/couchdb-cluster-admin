@@ -17,7 +17,7 @@ function longform_doccount {
 function make_rsync_files {
     FROM_NODE=$1
     TO_NODE=$2
-    python couchdb-cluster-admin/file_plan.py important --conf test/local.yml --from-plan=test/local.plan.json --node $TO_NODE > test/$TO_NODE.files.txt
+    python couchdb_cluster_admin/file_plan.py important --conf test/local.yml --from-plan=test/local.plan.json --node $TO_NODE > test/$TO_NODE.files.txt
 }
 
 function rsync_files {
@@ -35,9 +35,9 @@ function wait_for_couch_ping {
 }
 
 @test "add shards from one node to a cluster" {
-    python couchdb-cluster-admin/suggest_shard_allocation.py --conf=test/local.yml --allocate node1:1 --commit-to-couchdb
+    python couchdb_cluster_admin/suggest_shard_allocation.py --conf=test/local.yml --allocate node1:1 --commit-to-couchdb
 
-    python couchdb-cluster-admin/suggest_shard_allocation.py --conf=test/local.yml --allocate node1:1 node2,node3,node4:2 --save-plan=test/local.plan.json
+    python couchdb_cluster_admin/suggest_shard_allocation.py --conf=test/local.yml --allocate node1:1 node2,node3,node4:2 --save-plan=test/local.plan.json
 
     for i in {1..10}
     do
@@ -63,7 +63,7 @@ function wait_for_couch_ping {
     run rsync_files node1 node3 && [ "$status" = '23' ]
     run rsync_files node1 node4 && [ "$status" = '23' ]
 
-    python couchdb-cluster-admin/suggest_shard_allocation.py --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
+    python couchdb_cluster_admin/suggest_shard_allocation.py --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
 
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
     [ "$(doccount)" = '10' ]
