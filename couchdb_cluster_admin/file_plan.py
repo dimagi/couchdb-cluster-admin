@@ -1,6 +1,8 @@
 import argparse
+import itertools
 from collections import defaultdict, namedtuple
 import json
+
 from utils import get_config_from_args, get_shard_allocation, set_up_parser
 from describe import print_shard_table
 from doc_models import ShardAllocationDoc
@@ -83,6 +85,29 @@ def _get_shard_suffixes(config, plan):
         shard_suffix_by_db_name[db_name] = cluster_allocation_doc.usable_shard_suffix
 
     return shard_suffix_by_db_name
+
+
+def get_missing_files_by_node_and_source(config, plan):
+    """
+    :return: Lists of ``Nodefile`` tuples representing files that are missing from the node
+             grouped by target node and source node:
+             {
+                 'target1': {
+                     'source1': [Nodefile(...), Nodefile(...)]
+                 }
+             }
+    """
+    missing_files = defaultdict(lambda: defaultdict(list))
+    important_files_by_node, _ = get_node_files(config, plan)
+    important_files = itertools.chain(*important_files_by_node.values())
+    for db_name, db_files in itertools.groupby(important_files, key=lambda f: f.db_name):
+        cluster_allocation_doc = get_shard_allocation(config, db_name)
+        for file in db_files:
+            if file.shard not in cluster_allocation_doc.by_node.get(file.node, {}):
+                source = cluster_allocation_doc.by_range[file.shard][0]
+                missing_files[file.node][source].append(file)
+
+    return missing_files
 
 
 def run_plan_prune(config, plan, node):

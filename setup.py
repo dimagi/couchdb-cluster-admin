@@ -47,6 +47,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     include_package_data=True,
     install_requires=read_requirements('requirements.txt'),
+    tests_require=read_requirements('test-requirements.txt'),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
