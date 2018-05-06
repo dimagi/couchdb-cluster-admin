@@ -66,16 +66,13 @@ def show_plan(config, plan):
     print_shard_table(plan_allocation_docs)
 
 
-def _get_shard_suffixes(config, plan, validate_against_db=True):
+def _get_shard_suffixes(config, plan):
     shard_suffix_by_db_name = {}
     for db_name, plan_allocation_doc in plan.items():
-        if validate_against_db:
-            cluster_allocation_doc = get_shard_allocation(config, db_name)
+        cluster_allocation_doc = get_shard_allocation(config, db_name)
 
-            if plan_allocation_doc.shard_suffix:
-                assert cluster_allocation_doc.shard_suffix == plan_allocation_doc.shard_suffix
-        else:
-            cluster_allocation_doc = plan_allocation_doc
+        if plan_allocation_doc.shard_suffix:
+            assert cluster_allocation_doc.shard_suffix == plan_allocation_doc.shard_suffix
 
         shard_suffix_by_db_name[db_name] = cluster_allocation_doc.usable_shard_suffix
 
@@ -94,8 +91,8 @@ def run_important_plan(config, plan, node):
         print filename
 
 
-def get_node_files(config, plan, validate_suffixes=True):
-    return figure_out_what_you_can_and_cannot_delete(plan, _get_shard_suffixes(config, plan, validate_suffixes))
+def get_node_files(config, plan):
+    return figure_out_what_you_can_and_cannot_delete(plan, _get_shard_suffixes(config, plan))
 
 
 def main():
