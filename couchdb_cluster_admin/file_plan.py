@@ -1,9 +1,12 @@
 import argparse
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import json
 from utils import get_config_from_args, get_shard_allocation, set_up_parser
 from describe import print_shard_table
 from doc_models import ShardAllocationDoc
+
+
+Nodefile = namedtuple('Nodefile', 'db_name, node, shard, filename')
 
 
 def read_plan_file(filename):
@@ -29,20 +32,23 @@ def update_shard_allocation_docs_from_plan(cluster_allocation_doc, plan):
 def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None):
     if not shard_suffix_by_db_name:
         shard_suffix_by_db_name = defaultdict(lambda: '.*')
+
     all_files = set()
     important_files_by_node = defaultdict(set)
     for db_name, plan_allocation_doc in plan.items():
         shard_suffix = shard_suffix_by_db_name.get(db_name, None)
         for shard, nodes in plan_allocation_doc.by_range.items():
             for node in nodes:
-                couch_file = 'shards/{shard}/{db_name}{shard_suffix}.couch'.format(
+                couch_file_name = 'shards/{shard}/{db_name}{shard_suffix}.couch'.format(
                     shard=shard, db_name=db_name, shard_suffix=shard_suffix)
-                view_file = '.shards/{shard}/{db_name}{shard_suffix}_design'.format(
+                view_file_name = '.shards/{shard}/{db_name}{shard_suffix}_design'.format(
                     shard=shard, db_name=db_name, shard_suffix=shard_suffix)
 
+                couch_file = Nodefile(db_name, node, shard, couch_file_name)
                 important_files_by_node[node].add(couch_file)
                 all_files.add(couch_file)
 
+                view_file = Nodefile(db_name, node, shard, view_file_name)
                 important_files_by_node[node].add(view_file)
                 all_files.add(view_file)
 
@@ -81,14 +87,14 @@ def _get_shard_suffixes(config, plan):
 
 def run_plan_prune(config, plan, node):
     _, deletable_files_by_node = get_node_files(config, plan)
-    for filename in sorted(deletable_files_by_node[node]):
-        print filename
+    for file in sorted(deletable_files_by_node[node], key=lambda f: f.filename):
+        print file.filename
 
 
 def run_important_plan(config, plan, node):
     important_files_by_node, _ = get_node_files(config, plan)
-    for filename in sorted(important_files_by_node[node]):
-        print filename
+    for file in sorted(important_files_by_node[node], key=lambda f: f.filename):
+        print file.filename
 
 
 def get_node_files(config, plan):
