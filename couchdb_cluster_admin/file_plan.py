@@ -83,22 +83,19 @@ def _get_shard_suffixes(config, plan, validate_against_db=True):
 
 
 def run_plan_prune(config, plan, node):
-    _, deletable_files_by_node = figure_out_what_you_can_and_cannot_delete(
-        plan, _get_shard_suffixes(config, plan))
+    _, deletable_files_by_node = get_node_files(config, plan)
     for filename in sorted(deletable_files_by_node[node]):
         print filename
 
 
 def run_important_plan(config, plan, node):
-    important_files_by_node = get_important_files(config, plan)
+    important_files_by_node, _ = get_node_files(config, plan)
     for filename in sorted(important_files_by_node[node]):
         print filename
 
 
-def get_important_files(config, plan, validate_suffixes=True):
-    important_files_by_node, _ = figure_out_what_you_can_and_cannot_delete(
-        plan, _get_shard_suffixes(config, plan, validate_suffixes))
-    return important_files_by_node
+def get_node_files(config, plan, validate_suffixes=True):
+    return figure_out_what_you_can_and_cannot_delete(plan, _get_shard_suffixes(config, plan, validate_suffixes))
 
 
 def main():
