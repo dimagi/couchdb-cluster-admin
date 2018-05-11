@@ -32,10 +32,17 @@ def update_shard_allocation_docs_from_plan(cluster_allocation_doc, plan):
 
 
 def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None):
+    """
+    :param plan:
+    :param shard_suffix_by_db_name:
+    :return: tuple(important_files_by_node, deletable_files_by_node)
+                important_files_by_node is a dict of node->[Nodefile, ...]
+                deletable_files_by_node is a dict of node->[filename, ...]
+    """
     if not shard_suffix_by_db_name:
         shard_suffix_by_db_name = defaultdict(lambda: '.*')
 
-    all_files = set()
+    all_filenames = set()
     important_files_by_node = defaultdict(set)
     for db_name, plan_allocation_doc in plan.items():
         shard_suffix = shard_suffix_by_db_name.get(db_name, None)
@@ -48,15 +55,16 @@ def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None
 
                 couch_file = Nodefile(db_name, node, shard, couch_file_name)
                 important_files_by_node[node].add(couch_file)
-                all_files.add(couch_file)
+                all_filenames.add(couch_file_name)
 
                 view_file = Nodefile(db_name, node, shard, view_file_name)
                 important_files_by_node[node].add(view_file)
-                all_files.add(view_file)
+                all_filenames.add(view_file_name)
 
     deletable_files_by_node = {}
     for node, important_files in important_files_by_node.items():
-        deletable_files_by_node[node] = all_files - important_files
+        important_filenames = {file.filename for file in important_files}
+        deletable_files_by_node[node] = all_filenames - important_filenames
 
     return important_files_by_node, deletable_files_by_node
 
