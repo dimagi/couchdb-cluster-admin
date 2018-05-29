@@ -2,3 +2,4 @@ requests==2.18.4
 jsonobject>=0.8.0
 PyYAML==3.12
 gevent==1.2.2
+argparse>=1.4
