@@ -9,6 +9,9 @@ from setuptools import find_packages, setup
 
 
 def get_version(filename):
+    import os
+    from io import open
+    import re
     path = os.path.join(os.path.dirname(__file__), filename)
     with open(path, encoding="utf-8") as handle:
         content = handle.read()
@@ -16,6 +19,8 @@ def get_version(filename):
 
 
 def read_md(filename):
+    import os
+    from io import open
     path = os.path.join(os.path.dirname(__file__), filename)
     try:
         from pypandoc import convert
@@ -27,6 +32,8 @@ def read_md(filename):
 
 
 def read_requirements(filename):
+    import os
+    from io import open
     path = os.path.join(os.path.dirname(__file__), filename)
     with open(path, encoding="utf-8") as handle:
         content = handle.readlines()
@@ -46,7 +53,13 @@ setup(
     license='BSD License',
     packages=find_packages(exclude=['tests']),
     include_package_data=True,
-    install_requires=read_requirements('requirements.txt'),
+    install_requires=(
+        'argparse>=1.4',
+        'gevent',
+        'jsonobject>=0.8.0',
+        'PyYAML',
+        'requests',
+    ),
     tests_require=read_requirements('test-requirements.txt'),
     classifiers=[
         'Development Status :: 3 - Alpha',
