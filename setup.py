@@ -1,11 +1,9 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
-
-import os
-import re
-from io import open
-
 from setuptools import find_packages, setup
+
+# For compatibility with pip-compile,
+# all other imports must be at the function level
 
 
 def get_version(filename):
