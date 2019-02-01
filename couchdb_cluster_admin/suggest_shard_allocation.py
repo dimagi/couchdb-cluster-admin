@@ -248,7 +248,6 @@ def get_shard_allocation_from_plan(config, plan, create=False):
 
 
 def parse_allocation_line(config, allocation_line):
-    print allocation_line
     try:
         nodes, copies, databases = allocation_line.split(':')
     except ValueError:
