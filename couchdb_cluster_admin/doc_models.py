@@ -1,5 +1,5 @@
 from collections import defaultdict
-from jsonobject import JsonObject, ListProperty, DictProperty, StringProperty
+from jsonobject import JsonObject, ListProperty, DictProperty, StringProperty, IntegerProperty
 
 
 class ConfigInjectionMixin(object):
@@ -120,3 +120,9 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
             for shard, nodes in sorted(self.by_range.items()):
                 parts.append(other_columns.format(u','.join(map(self.config.format_node_name, nodes))))
         return ''.join(parts)
+
+
+class AllocationSpec(JsonObject):
+    databases = ListProperty(unicode)
+    nodes = ListProperty(unicode)
+    copies = IntegerProperty()

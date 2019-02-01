@@ -5,7 +5,7 @@ from utils import humansize, get_arg_parser, get_config_from_args, check_connect
     get_db_list, get_db_metadata, get_shard_allocation, do_couch_request, put_shard_allocation
 from describe import print_shard_table
 from file_plan import read_plan_file
-from doc_models import ShardAllocationDoc
+from doc_models import ShardAllocationDoc, AllocationSpec
 
 _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
@@ -100,21 +100,42 @@ def print_db_info(config):
         )
 
 
-def get_shard_sizes(db_info):
+def get_shard_sizes(db_info, databases):
     return [
         (1.0 * sum([size] + views_size.values()) / len(shards), (shard_name, db_name))
         for db_name, size, views_size, shards, _ in db_info
-        for shard_name in shards
+        for shard_name in shards if db_name in databases
     ]
 
 
-def make_suggested_allocation_by_db(config, db_info, allocation):
+def normalize_allocation_specs(db_info, allocation_specs):
+    """
+    Modify allocation_specs in place to explicitly fill in database
+
+    An allocation spec without explicit databases is assigned all databases
+    not mentioned elsewhere.
+    """
+    db_names = {db_name for db_name, _, _, _, _ in db_info}
+    mentioned_dbs = {db_name for allocation in allocation_specs
+                     for db_name in (allocation.databases if allocation.databases else [])}
+    unmentioned_dbs = list(db_names - mentioned_dbs)
+
+    for allocation in allocation_specs:
+        if allocation.databases is None:
+            allocation.databases = list(unmentioned_dbs)
+
+
+def make_suggested_allocation_by_db(config, db_info, allocation_specs):
     suggested_allocation_by_db = defaultdict(list)
-    for nodes, copies in allocation:
-        for node_allocation in suggest_shard_allocation(get_shard_sizes(db_info), len(nodes), copies):
-            print "{}\t{}".format(config.format_node_name(nodes[node_allocation.i]), humansize(node_allocation.size[0]))
+    normalize_allocation_specs(db_info, allocation_specs)
+
+    for allocation in allocation_specs:
+        suggested_shard_allocation = suggest_shard_allocation(
+            get_shard_sizes(db_info, allocation.databases), len(allocation.nodes), allocation.copies)
+        for node_allocation in suggested_shard_allocation:
+            print "{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size[0]))
             for shard_name, db_name in node_allocation.shards:
-                suggested_allocation_by_db[db_name].append((nodes[node_allocation.i], shard_name))
+                suggested_allocation_by_db[db_name].append((allocation.nodes[node_allocation.i], shard_name))
 
     shard_allocations_docs = {
         db_name: shard_allocation_doc
@@ -173,7 +194,7 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--allocate', dest='allocation', nargs="+",
                        help='List of nodes and how many copies you want on them, '
-                            'like node1,node2,node3:<ncopies> [...]')
+                            'like node1,node2,node3:<ncopies>[:db1,db2] [...]')
 
     group.add_argument('--from-plan', dest='plan_file',
                        help=u'Get target shard allocation from plan file.')
@@ -226,14 +247,31 @@ def get_shard_allocation_from_plan(config, plan, create=False):
     return shard_allocations
 
 
+def parse_allocation_line(config, allocation_line):
+    try:
+        nodes, copies, databases = allocation_line.split(':')
+    except ValueError:
+        nodes, copies = allocation_line.split(':')
+        databases = None
+
+    nodes = [config.get_formal_node_name(node) for node in nodes.split(',')]
+    copies = int(copies)
+    if databases:
+        databases = databases.split(',')
+    return AllocationSpec(
+        nodes=nodes,
+        copies=copies,
+        databases=databases,
+    )
+
+
 def generate_shard_allocation(config, allocation):
+    allocation = [
+        parse_allocation_line(config, allocation_line) for allocation_line in allocation
+    ]
     db_info = get_db_info(config)
     shard_allocations_docs = [shard_allocation_doc
                               for _, _, _, _, shard_allocation_doc in db_info]
-    allocation = [
-        ([config.get_formal_node_name(node) for node in nodes.split(',')], int(copies))
-        for nodes, copies in (group.split(':') for group in allocation)
-    ]
     shard_allocations = apply_suggested_allocation(
         shard_allocations_docs,
         make_suggested_allocation_by_db(config, db_info, allocation)
