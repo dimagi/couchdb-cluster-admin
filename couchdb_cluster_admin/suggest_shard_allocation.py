@@ -10,7 +10,21 @@ from describe import print_shard_table
 from file_plan import read_plan_file
 from doc_models import ShardAllocationDoc, AllocationSpec
 
-_NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
+
+class _NodeAllocation(object):
+    def __init__(self, i, size, shards):
+        self.i = i
+        self.size = size
+        self.shards = shards
+
+    def as_tuple(self):
+        return self.i, self.size, self.shards
+
+    def __eq__(self, other):
+        return self.as_tuple() == other.as_tuple()
+
+    def __repr__(self):
+        return '_NodeAllocation({self.i!r}, {self.size!r}, {self.shards!r})'.format(self=self)
 
 
 def suggest_shard_allocation(shard_sizes, n_nodes, n_copies, existing_allocation=None):
@@ -23,7 +37,8 @@ class Allocator(object):
         self.n_nodes = n_nodes
         self.n_copies = n_copies
         self.existing_allocation = existing_allocation or ([set()] * self.n_nodes)
-        self.nodes = [_NodeAllocation(i, [0], []) for i in range(self.n_nodes)]
+        self.nodes = [_NodeAllocation(i, 0, []) for i in range(self.n_nodes)]
+        self.copies_moved_from_existing_location_by_shard = defaultdict(int)
 
     def suggest_shard_allocation(self):
         for shard in self._get_shard_sizes_largest_to_smallest():
@@ -44,7 +59,7 @@ class Allocator(object):
         """
         return sorted(
             self.nodes,
-            key=lambda node: (shard not in self.existing_allocation[node.i], node.size[0])
+            key=lambda node: (shard not in self.existing_allocation[node.i], node.size)
         )[:self.n_copies]
 
     @memoized_property
@@ -53,7 +68,7 @@ class Allocator(object):
 
     def _add_shard_to_node(self, node, shard):
         node.shards.append(shard)
-        node.size[0] += self._sizes_by_shard[shard]
+        node.size += self._sizes_by_shard[shard]
 
 
 def get_db_size(node_details, db_name):
@@ -181,7 +196,7 @@ def make_suggested_allocation_by_db(config, db_info, allocation_specs):
             existing_allocation=existing_allocation
         )
         for node_allocation in suggested_shard_allocation:
-            print "{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size[0]))
+            print "{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size))
             for shard_name, db_name in node_allocation.shards:
                 suggested_allocation_by_db[db_name].append((allocation.nodes[node_allocation.i], shard_name))
 
