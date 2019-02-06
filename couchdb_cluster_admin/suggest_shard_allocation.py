@@ -1,6 +1,9 @@
 import argparse
 from collections import namedtuple, defaultdict
 import json
+
+from memoized import memoized_property
+
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
     get_db_list, get_db_metadata, get_shard_allocation, do_couch_request, put_shard_allocation
 from describe import print_shard_table
@@ -11,19 +14,46 @@ _NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
 
 
 def suggest_shard_allocation(shard_sizes, n_nodes, n_copies, existing_allocation=None):
-    existing_allocation = existing_allocation or ([set()] * n_nodes)
-    shard_sizes = reversed(sorted(shard_sizes))
-    # size is a list here to simulate a mutable int
-    nodes = [_NodeAllocation(i, [0], []) for i in range(n_nodes)]
-    for size, shard in shard_sizes:
-        selected_nodes = sorted(
-            nodes,
-            key=lambda node: (shard not in existing_allocation[node.i], node.size[0])
-        )[:n_copies]
-        for node in selected_nodes:
-            node.shards.append(shard)
-            node.size[0] += size
-    return nodes
+    return Allocator(shard_sizes, n_nodes, n_copies, existing_allocation).suggest_shard_allocation()
+
+
+class Allocator(object):
+    def __init__(self, shard_sizes, n_nodes, n_copies, existing_allocation=None):
+        self.shard_sizes = shard_sizes
+        self.n_nodes = n_nodes
+        self.n_copies = n_copies
+        self.existing_allocation = existing_allocation or ([set()] * self.n_nodes)
+        self.nodes = [_NodeAllocation(i, [0], []) for i in range(self.n_nodes)]
+
+    def suggest_shard_allocation(self):
+        for shard in self._get_shard_sizes_largest_to_smallest():
+            for node in self._select_shard_locations(shard):
+                self._add_shard_to_node(node, shard)
+
+        return self.nodes
+
+    def _get_shard_sizes_largest_to_smallest(self):
+        return [shard for _, shard in reversed(sorted(self.shard_sizes))]
+
+    def _select_shard_locations(self, shard):
+        """
+        Selects best location for n_copies of a given shard, based the allocation so far
+        preferring a shard's existing locations
+
+        returns a list of nodes (_NodeAllocation) that has length n_copies
+        """
+        return sorted(
+            self.nodes,
+            key=lambda node: (shard not in self.existing_allocation[node.i], node.size[0])
+        )[:self.n_copies]
+
+    @memoized_property
+    def _sizes_by_shard(self):
+        return {shard: size for size, shard in self.shard_sizes}
+
+    def _add_shard_to_node(self, node, shard):
+        node.shards.append(shard)
+        node.size[0] += self._sizes_by_shard[shard]
 
 
 def get_db_size(node_details, db_name):
