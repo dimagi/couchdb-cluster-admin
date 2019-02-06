@@ -150,16 +150,18 @@ def test_suggest_shard_allocation__no_chnage():
 
 
 def test_suggest_shard_allocation__increase_copies():
+    # start with 3 copies across 7 nodes
     existing_allocation = [
-        {(u'e0000000-ffffffff', u'commcarehq')},
-        {(u'c0000000-dfffffff', u'commcarehq')},
-        {(u'a0000000-bfffffff', u'commcarehq')},
-        {(u'80000000-9fffffff', u'commcarehq')},
-        {(u'60000000-7fffffff', u'commcarehq')},
-        {(u'40000000-5fffffff', u'commcarehq')},
-        {(u'20000000-3fffffff', u'commcarehq')},
-        {(u'00000000-1fffffff', u'commcarehq')},
+        {(u'e0000000-ffffffff', u'commcarehq'), (u'00000000-1fffffff', u'commcarehq'), (u'40000000-5fffffff', u'commcarehq'), (u'20000000-3fffffff', u'commcarehq')},
+        {(u'c0000000-dfffffff', u'commcarehq'), (u'e0000000-ffffffff', u'commcarehq'), (u'00000000-1fffffff', u'commcarehq'), (u'20000000-3fffffff', u'commcarehq')},
+        {(u'a0000000-bfffffff', u'commcarehq'), (u'e0000000-ffffffff', u'commcarehq'), (u'00000000-1fffffff', u'commcarehq'), (u'c0000000-dfffffff', u'commcarehq')},
+        {(u'80000000-9fffffff', u'commcarehq'), (u'c0000000-dfffffff', u'commcarehq'), (u'a0000000-bfffffff', u'commcarehq')},
+        {(u'60000000-7fffffff', u'commcarehq'), (u'a0000000-bfffffff', u'commcarehq'), (u'80000000-9fffffff', u'commcarehq')},
+        {(u'40000000-5fffffff', u'commcarehq'), (u'80000000-9fffffff', u'commcarehq'), (u'60000000-7fffffff', u'commcarehq')},
+        {(u'20000000-3fffffff', u'commcarehq'), (u'60000000-7fffffff', u'commcarehq'), (u'40000000-5fffffff', u'commcarehq')},
+        {},
     ]
+    # and then add an 8th node
     new_allocation = suggest_shard_allocation(
         shard_sizes=[
             (916925224199.5, (u'00000000-1fffffff', u'commcarehq')),
@@ -175,8 +177,6 @@ def test_suggest_shard_allocation__increase_copies():
         n_copies=3,
         existing_allocation=existing_allocation,
     )
-
     for i, node in enumerate(new_allocation):
-        # assert that the new allocation contains all the shards in the existing allocation
-        # (not always true, but should be in this case)
-        assert existing_allocation[i] & set(node.shards) == existing_allocation[i]
+        # the nodes should now be properly balanced with 3 shard-copies per node
+        assert len(node.shards) == 3

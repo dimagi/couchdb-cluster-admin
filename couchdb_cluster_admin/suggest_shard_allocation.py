@@ -38,13 +38,17 @@ class Allocator(object):
         self.n_copies = n_copies
         self.existing_allocation = existing_allocation or ([set()] * self.n_nodes)
         self.nodes = [_NodeAllocation(i, 0, []) for i in range(self.n_nodes)]
-        self.copies_moved_from_existing_location_by_shard = defaultdict(int)
+        self._copies_moved_from_existing_location_by_shard = defaultdict(int)
+        self._average_size = sum([size for size, _ in shard_sizes]) * n_copies * 1.0 / n_nodes
 
     def suggest_shard_allocation(self):
+        # First distribute, preferring shards' current locations
         for shard in self._get_shard_sizes_largest_to_smallest():
             for node in self._select_shard_locations(shard):
                 self._add_shard_to_node(node, shard)
 
+        # Then rebalance
+        self._rebalance_nodes()
         return self.nodes
 
     def _get_shard_sizes_largest_to_smallest(self):
@@ -69,6 +73,76 @@ class Allocator(object):
     def _add_shard_to_node(self, node, shard):
         node.shards.append(shard)
         node.size += self._sizes_by_shard[shard]
+
+    def _rebalance_nodes(self):
+        larger_nodes, smaller_nodes = self._split_nodes_by_under_allocated()
+        if not smaller_nodes:
+            return
+
+        while True:
+            # Move copies from larger_nodes to smaller_nodes
+            # until doing so would make a larger node smaller than average_size
+            # Never move more than half - 1 copies of a shard from their original location
+            # (as given by existing_allocation)---these are the shard's "pivot locations"
+            larger_nodes.sort(key=lambda node: node.size, reverse=True)
+            smallest_node = min(smaller_nodes, key=lambda node: node.size)
+            if smallest_node.size >= self._average_size:
+                break
+            try:
+                large_node, shard = self._find_shard_to_move(larger_nodes, smallest_node)
+            except self.NoEligibleMove:
+                break
+            else:
+                self._move_shard(shard, large_node, smallest_node)
+
+    def _move_shard(self, shard, node1, node2):
+        if self._is_original_location(node1, shard):
+            self._copies_moved_from_existing_location_by_shard[shard] += 1
+        node1.shards.remove(shard)
+        node1.size -= self._sizes_by_shard[shard]
+        self._add_shard_to_node(node2, shard)
+
+    def _split_nodes_by_under_allocated(self):
+        """
+        Split nodes into okay nodes and under-allocated nodes
+
+        Any node whose size is less than half the size of the largest node
+        is deemed under-allocated
+
+        :return: (okay_nodes, under_allocated_nodes)
+        """
+        threshold = max(self.nodes, key=lambda node: node.size).size / 2
+        return (
+            [node for node in self.nodes if node.size >= threshold],
+            [node for node in self.nodes if node.size < threshold]
+        )
+
+    class NoEligibleMove(Exception):
+        pass
+
+    def _find_shard_to_move(self, larger_nodes, smallest_node):
+        for large_node in larger_nodes:
+            for shard in large_node.shards:
+                if shard in smallest_node.shards:
+                    # don't move a shard if a copy of it is already on the target node
+                    continue
+                if large_node.size - self._sizes_by_shard[shard] < self._average_size:
+                    # don't move a shard if it would make the source node smaller than average
+                    continue
+                if self._is_original_location(large_node, shard) \
+                        and not self._can_still_move_original_copies(shard):
+                    # don't move a shard if that shard has already had
+                    # the max number of its copies moved
+                    # this is to make sure we have n/2+1 pivot locations for a shard
+                    continue
+                return large_node, shard
+        raise self.NoEligibleMove()
+
+    def _is_original_location(self, node, shard):
+        return shard in self.existing_allocation[node.i]
+
+    def _can_still_move_original_copies(self, shard):
+        return self._copies_moved_from_existing_location_by_shard[shard] >= (self.n_copies / 2 - 1)
 
 
 def get_db_size(node_details, db_name):
