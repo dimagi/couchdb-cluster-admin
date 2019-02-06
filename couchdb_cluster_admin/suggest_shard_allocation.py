@@ -142,7 +142,8 @@ class Allocator(object):
         return shard in self.existing_allocation[node.i]
 
     def _can_still_move_original_copies(self, shard):
-        return self._copies_moved_from_existing_location_by_shard[shard] >= (self.n_copies / 2 - 1)
+        # unmoved original shards is larger than half of n_copies
+        return self.n_copies - self._copies_moved_from_existing_location_by_shard[shard] > (self.n_copies / 2 + 1)
 
 
 def get_db_size(node_details, db_name):
