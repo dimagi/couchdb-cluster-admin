@@ -38,8 +38,11 @@ class Allocator(object):
         self.n_copies = n_copies
         self.existing_allocation = existing_allocation or ([set()] * self.n_nodes)
         self.nodes = [_NodeAllocation(i, 0, []) for i in range(self.n_nodes)]
-        self._copies_moved_from_existing_location_by_shard = defaultdict(int)
         self._average_size = sum([size for size, _ in shard_sizes]) * n_copies * 1.0 / n_nodes
+        self._copies_still_in_original_location_by_shard = defaultdict(int)
+        for shards in self.existing_allocation:
+            for shard in shards:
+                self._copies_still_in_original_location_by_shard[shard] += 1
 
     def suggest_shard_allocation(self):
         # First distribute, preferring shards' current locations
@@ -78,7 +81,7 @@ class Allocator(object):
         larger_nodes, smaller_nodes = self._split_nodes_by_under_allocated()
         if not smaller_nodes:
             return
-
+        print larger_nodes, smaller_nodes
         while True:
             # Move copies from larger_nodes to smaller_nodes
             # until doing so would make a larger node smaller than average_size
@@ -97,7 +100,7 @@ class Allocator(object):
 
     def _move_shard(self, shard, node1, node2):
         if self._is_original_location(node1, shard):
-            self._copies_moved_from_existing_location_by_shard[shard] += 1
+            self._copies_still_in_original_location_by_shard[shard] -= 1
         node1.shards.remove(shard)
         node1.size -= self._sizes_by_shard[shard]
         self._add_shard_to_node(node2, shard)
@@ -143,7 +146,7 @@ class Allocator(object):
 
     def _can_still_move_original_copies(self, shard):
         # unmoved original shards is larger than half of n_copies
-        return self.n_copies - self._copies_moved_from_existing_location_by_shard[shard] > (self.n_copies / 2 + 1)
+        return self._copies_still_in_original_location_by_shard[shard] > (self.n_copies / 2 + 1)
 
 
 def get_db_size(node_details, db_name):
