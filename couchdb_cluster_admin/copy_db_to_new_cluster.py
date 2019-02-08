@@ -95,7 +95,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.database == 'ALL':
-        dbs = get_db_list(from_details, skip_private=False)
+        dbs = get_db_list(from_details)
     else:
         dbs = [args.database]
     print(dbs)

@@ -71,7 +71,7 @@ if __name__ == '__main__':
         print(line)
         sys.exit(1)
 
-    for db_name in get_db_list(node_details, skip_private=False):
+    for db_name in get_db_list(node_details):
         if db_name.startswith('_'):
             # TODO: remove this once there's a workaround for https://github.com/apache/couchdb/issues/858
             print('Skipping {}'.format(db_name))
