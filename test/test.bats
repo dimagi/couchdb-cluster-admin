@@ -4,6 +4,11 @@ function setup {
     db_name=test$(head -n20 /dev/random | python -c 'import hashlib, sys; print hashlib.md5(sys.stdin.read()).hexdigest()')
     echo "PUT" $db_name
     curl -sX PUT http://localhost:15984/${db_name}
+    curl -sX PUT http://localhost:15984/_users/org.couchdb.user:jan \
+     -H "Accept: application/json" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "jan", "password": "apple", "roles": [], "type": "user"}'
+
 }
 
 function doccount {
