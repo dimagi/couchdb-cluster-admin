@@ -1,5 +1,5 @@
 import argparse
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 import json
 
 from memoized import memoized_property
@@ -81,7 +81,7 @@ class Allocator(object):
         larger_nodes, smaller_nodes = self._split_nodes_by_under_allocated()
         if not smaller_nodes:
             return
-        print larger_nodes, smaller_nodes
+
         while True:
             # Move copies from larger_nodes to smaller_nodes
             # until doing so would make a larger node smaller than average_size
