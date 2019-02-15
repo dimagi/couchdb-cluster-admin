@@ -57,6 +57,7 @@ setup(
         'jsonobject>=0.8.0',
         'PyYAML',
         'requests',
+        'dimagi-memoized'
     ),
     tests_require=read_requirements('test-requirements.txt'),
     classifiers=[

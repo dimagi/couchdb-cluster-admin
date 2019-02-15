@@ -1,25 +1,152 @@
 import argparse
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 import json
+
+from memoized import memoized_property
+
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
     get_db_list, get_db_metadata, get_shard_allocation, do_couch_request, put_shard_allocation
 from describe import print_shard_table
 from file_plan import read_plan_file
 from doc_models import ShardAllocationDoc, AllocationSpec
 
-_NodeAllocation = namedtuple('_NodeAllocation', 'i size shards')
+
+class _NodeAllocation(object):
+    def __init__(self, i, size, shards):
+        self.i = i
+        self.size = size
+        self.shards = shards
+
+    def as_tuple(self):
+        return self.i, self.size, self.shards
+
+    def __eq__(self, other):
+        return self.as_tuple() == other.as_tuple()
+
+    def __repr__(self):
+        return '_NodeAllocation({self.i!r}, {self.size!r}, {self.shards!r})'.format(self=self)
 
 
-def suggest_shard_allocation(shard_sizes, n_nodes, n_copies):
-    shard_sizes = reversed(sorted(shard_sizes))
-    # size is a list here to simulate a mutable int
-    nodes = [_NodeAllocation(i, [0], []) for i in range(n_nodes)]
-    for size, shard in shard_sizes:
-        selected_nodes = sorted(nodes, key=lambda node: node.size[0])[:n_copies]
-        for node in selected_nodes:
-            node.shards.append(shard)
-            node.size[0] += size
-    return nodes
+def suggest_shard_allocation(shard_sizes, n_nodes, n_copies, existing_allocation=None):
+    return Allocator(shard_sizes, n_nodes, n_copies, existing_allocation).suggest_shard_allocation()
+
+
+class Allocator(object):
+    def __init__(self, shard_sizes, n_nodes, n_copies, existing_allocation=None):
+        self.shard_sizes = shard_sizes
+        self.n_nodes = n_nodes
+        self.n_copies = n_copies
+        self.existing_allocation = existing_allocation or ([set()] * self.n_nodes)
+        self.nodes = [_NodeAllocation(i, 0, []) for i in range(self.n_nodes)]
+        self._average_size = sum([size for size, _ in shard_sizes]) * n_copies * 1.0 / n_nodes
+        self._copies_still_in_original_location_by_shard = defaultdict(int)
+        for shards in self.existing_allocation:
+            for shard in shards:
+                self._copies_still_in_original_location_by_shard[shard] += 1
+
+    def suggest_shard_allocation(self):
+        # First distribute, preferring shards' current locations
+        for shard in self._get_shard_sizes_largest_to_smallest():
+            for node in self._select_shard_locations(shard):
+                self._add_shard_to_node(node, shard)
+
+        # Then rebalance
+        self._rebalance_nodes()
+        return self.nodes
+
+    def _get_shard_sizes_largest_to_smallest(self):
+        return [shard for _, shard in reversed(sorted(self.shard_sizes))]
+
+    def _select_shard_locations(self, shard):
+        """
+        Selects best location for n_copies of a given shard, based the allocation so far
+        preferring a shard's existing locations
+
+        returns a list of nodes (_NodeAllocation) that has length n_copies
+        """
+        return sorted(
+            self.nodes,
+            key=lambda node: (shard not in self.existing_allocation[node.i], node.size)
+        )[:self.n_copies]
+
+    @memoized_property
+    def _sizes_by_shard(self):
+        return {shard: size for size, shard in self.shard_sizes}
+
+    def _add_shard_to_node(self, node, shard):
+        node.shards.append(shard)
+        node.size += self._sizes_by_shard[shard]
+
+    def _rebalance_nodes(self):
+        larger_nodes, smaller_nodes = self._split_nodes_by_under_allocated()
+        if not smaller_nodes:
+            return
+
+        while True:
+            # Move copies from larger_nodes to smaller_nodes
+            # until doing so would make a larger node smaller than average_size
+            # Never move more than half - 1 copies of a shard from their original location
+            # (as given by existing_allocation)---these are the shard's "pivot locations"
+            larger_nodes.sort(key=lambda node: node.size, reverse=True)
+            smallest_node = min(smaller_nodes, key=lambda node: node.size)
+            if smallest_node.size >= self._average_size:
+                break
+            try:
+                large_node, shard = self._find_shard_to_move(larger_nodes, smallest_node)
+            except self.NoEligibleMove:
+                break
+            else:
+                self._move_shard(shard, large_node, smallest_node)
+
+    def _move_shard(self, shard, node1, node2):
+        if self._is_original_location(node1, shard):
+            self._copies_still_in_original_location_by_shard[shard] -= 1
+        node1.shards.remove(shard)
+        node1.size -= self._sizes_by_shard[shard]
+        self._add_shard_to_node(node2, shard)
+
+    def _split_nodes_by_under_allocated(self):
+        """
+        Split nodes into okay nodes and under-allocated nodes
+
+        Any node whose size is less than half the size of the largest node
+        is deemed under-allocated
+
+        :return: (okay_nodes, under_allocated_nodes)
+        """
+        threshold = max(self.nodes, key=lambda node: node.size).size / 2
+        return (
+            [node for node in self.nodes if node.size >= threshold],
+            [node for node in self.nodes if node.size < threshold]
+        )
+
+    class NoEligibleMove(Exception):
+        pass
+
+    def _find_shard_to_move(self, larger_nodes, smallest_node):
+        for large_node in larger_nodes:
+            for shard in large_node.shards:
+                if shard in smallest_node.shards:
+                    # don't move a shard if a copy of it is already on the target node
+                    continue
+                if large_node.size - self._sizes_by_shard[shard] < self._average_size:
+                    # don't move a shard if it would make the source node smaller than average
+                    continue
+                if self._is_original_location(large_node, shard) \
+                        and not self._can_still_move_original_copies(shard):
+                    # don't move a shard if that shard has already had
+                    # the max number of its copies moved
+                    # this is to make sure we have n/2+1 pivot locations for a shard
+                    continue
+                return large_node, shard
+        raise self.NoEligibleMove()
+
+    def _is_original_location(self, node, shard):
+        return shard in self.existing_allocation[node.i]
+
+    def _can_still_move_original_copies(self, shard):
+        # unmoved original shards is larger than half of n_copies
+        return self._copies_still_in_original_location_by_shard[shard] > (self.n_copies / 2 + 1)
 
 
 def get_db_size(node_details, db_name):
@@ -125,15 +252,29 @@ def normalize_allocation_specs(db_info, allocation_specs):
             allocation.databases = list(unmentioned_dbs)
 
 
+def get_existing_shard_allocation(db_info, databases, nodes):
+    return [
+        {
+            (shard_name, db_name)
+            for db_name, _, _, _, shard_allocation_doc in db_info if db_name in databases
+            for shard_name in shard_allocation_doc.by_node.get(node, [])
+        }
+        for node in nodes
+    ]
+
+
 def make_suggested_allocation_by_db(config, db_info, allocation_specs):
     suggested_allocation_by_db = defaultdict(list)
     normalize_allocation_specs(db_info, allocation_specs)
 
     for allocation in allocation_specs:
+        existing_allocation = get_existing_shard_allocation(db_info, allocation.databases, allocation.nodes)
         suggested_shard_allocation = suggest_shard_allocation(
-            get_shard_sizes(db_info, allocation.databases), len(allocation.nodes), allocation.copies)
+            get_shard_sizes(db_info, allocation.databases), len(allocation.nodes), allocation.copies,
+            existing_allocation=existing_allocation
+        )
         for node_allocation in suggested_shard_allocation:
-            print "{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size[0]))
+            print "{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size))
             for shard_name, db_name in node_allocation.shards:
                 suggested_allocation_by_db[db_name].append((allocation.nodes[node_allocation.i], shard_name))
 
