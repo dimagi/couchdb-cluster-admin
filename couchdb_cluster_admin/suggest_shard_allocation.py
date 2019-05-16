@@ -2,6 +2,7 @@ import argparse
 from collections import defaultdict
 import json
 
+import requests
 from memoized import memoized_property
 
 from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
@@ -377,7 +378,14 @@ def main():
 
     if args.commit:
         for shard_allocation_doc in shard_allocations:
-            print put_shard_allocation(config, shard_allocation_doc)
+            db_name = shard_allocation_doc.db_name
+            try:
+                print put_shard_allocation(config, shard_allocation_doc)
+            except requests.exceptions.HTTPError as e:
+                if db_name.startswith('_') and e.response.json().get('error') == 'illegal_docid':
+                    print("Skipping {} (error response was {})".format(db_name, e.response.json()))
+                else:
+                    raise
 
 
 def get_shard_allocation_from_plan(config, plan, create=False):

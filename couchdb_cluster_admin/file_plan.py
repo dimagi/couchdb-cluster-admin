@@ -58,8 +58,12 @@ def figure_out_what_you_can_and_cannot_delete(plan, shard_suffix_by_db_name=None
                 all_filenames.add(couch_file_name)
 
                 view_file = Nodefile(db_name, node, shard, view_file_name)
-                important_files_by_node[node].add(view_file)
-                all_filenames.add(view_file_name)
+                # _global_changes doesn't have any views, so there's no view file
+                # The same is true of _any_ db with no views, but it's rare enough
+                # that I'm just cutting corners for simplicity
+                if db_name != '_global_changes':
+                    important_files_by_node[node].add(view_file)
+                    all_filenames.add(view_file_name)
 
     deletable_files_by_node = {}
     for node, important_files in important_files_by_node.items():

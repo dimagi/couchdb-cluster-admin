@@ -41,16 +41,9 @@ def _do_request(node_details, path, port, method='get', params=None, json=None):
     return response.json()
 
 
-def get_db_list(node_details, skip_private=True):
-    """
-    :param skip_private: if True, exclude dbs that start with an underscore from the result
-    :return: list of dbs
-    """
+def get_db_list(node_details):
     db_names = do_couch_request(node_details, '_all_dbs')
-    if skip_private:
-        return [db_name for db_name in db_names if not db_name.startswith('_')]
-    else:
-        return db_names
+    return db_names
 
 
 def get_db_metadata(node_details, db_name):
