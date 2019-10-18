@@ -12,7 +12,7 @@ gevent==1.4.0
 greenlet==0.4.15          # via gevent
 idna==2.8                 # via requests
 jsonobject==0.9.8
-pyyaml==3.13
+pyyaml==5.1
 requests==2.21.0
 six==1.12.0               # via jsonobject
 urllib3==1.24.1           # via requests
