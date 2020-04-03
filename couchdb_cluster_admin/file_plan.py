@@ -1,11 +1,13 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import argparse
 import itertools
 from collections import defaultdict, namedtuple
 import json
 
-from utils import get_config_from_args, get_shard_allocation, set_up_parser
-from describe import print_shard_table
-from doc_models import ShardAllocationDoc
+from .utils import get_config_from_args, get_shard_allocation, set_up_parser
+from .describe import print_shard_table
+from .doc_models import ShardAllocationDoc
 
 
 Nodefile = namedtuple('Nodefile', 'db_name, node, shard, filename')
@@ -80,7 +82,7 @@ def assemble_shard_allocations_from_plan(config, plan):
 
 
 def show_plan(config, plan):
-    plan_allocation_docs = plan.values()
+    plan_allocation_docs = list(plan.values())
     for doc in plan_allocation_docs:
         doc.set_config(config)
     print_shard_table(plan_allocation_docs)
@@ -111,7 +113,7 @@ def get_missing_files_by_node_and_source(config, plan):
     """
     missing_files = defaultdict(lambda: defaultdict(list))
     important_files_by_node, _ = get_node_files(config, plan)
-    important_files = itertools.chain(*important_files_by_node.values())
+    important_files = itertools.chain(*list(important_files_by_node.values()))
     for db_name, db_files in itertools.groupby(important_files, key=lambda f: f.db_name):
         cluster_allocation_doc = get_shard_allocation(config, db_name)
         for file in db_files:
@@ -125,13 +127,13 @@ def get_missing_files_by_node_and_source(config, plan):
 def run_plan_prune(config, plan, node):
     _, deletable_files_by_node = get_node_files(config, plan)
     for file in sorted(deletable_files_by_node[node], key=lambda f: f.filename):
-        print file.filename
+        print(file.filename)
 
 
 def run_important_plan(config, plan, node):
     important_files_by_node, _ = get_node_files(config, plan)
     for file in sorted(important_files_by_node[node], key=lambda f: f.filename):
-        print file.filename
+        print(file.filename)
 
 
 def get_node_files(config, plan):

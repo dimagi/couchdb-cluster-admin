@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 
-from utils import (
+from .utils import (
     add_node_to_cluster,
     check_connection,
     confirm,
@@ -16,7 +18,7 @@ def _update_db_doc_with_new_node(node_details, db_name, new_node):
     db_doc = do_node_local_request(node_details, '_dbs/{}'.format(db_name))
     by_node = db_doc['by_node']
     if new_node in by_node:
-        print('  Node "{}" already has shards for db "{}"'.format(new_node, db_name))
+        print(('  Node "{}" already has shards for db "{}"'.format(new_node, db_name)))
         return
 
     shards_for_new_node = None
@@ -26,7 +28,7 @@ def _update_db_doc_with_new_node(node_details, db_name, new_node):
             break
 
     if not shards_for_new_node:
-        print('Unable to find shards for db {}'.format(db_name))
+        print(('Unable to find shards for db {}'.format(db_name)))
         return
 
     print('  Adding shards to new node:\n')
@@ -36,12 +38,12 @@ def _update_db_doc_with_new_node(node_details, db_name, new_node):
     for shard in shards_for_new_node:
         current_nodes = db_doc['by_range'][shard]
         if new_node not in current_nodes:
-            print('    {}'.format(shard))
+            print(('    {}'.format(shard)))
             current_nodes.append(new_node)
         else:
-            print('    Node already had shard: {}'.format(shard))
+            print(('    Node already had shard: {}'.format(shard)))
 
-    print('  Updating db config for {}'.format(db_name))
+    print(('  Updating db config for {}'.format(db_name)))
     do_node_local_request(node_details, '_dbs/{}'.format(db_name), method='put', json=db_doc)
 
 
@@ -74,7 +76,7 @@ if __name__ == '__main__':
     for db_name in get_db_list(node_details):
         if db_name.startswith('_'):
             # TODO: remove this once there's a workaround for https://github.com/apache/couchdb/issues/858
-            print('Skipping {}'.format(db_name))
+            print(('Skipping {}'.format(db_name)))
             continue
         if confirm('Add shards from db "{}" to new node?'.format(db_name)):
             _update_db_doc_with_new_node(node_details, db_name, new_node)

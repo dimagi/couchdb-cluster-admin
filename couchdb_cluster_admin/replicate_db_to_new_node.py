@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 
-from utils import (
+from .utils import (
     do_couch_request,
     get_arg_parser,
     node_details_from_args,
@@ -16,7 +18,7 @@ def _update_db_doc_with_new_node(node_details, db_name, new_node):
     db_doc = do_node_local_request(node_details, '_dbs/{}'.format(db_name))
     by_node = db_doc['by_node']
     if new_node in by_node:
-        print('  Node "{}" already has shards for db "{}"'.format(new_node, db_name))
+        print(('  Node "{}" already has shards for db "{}"'.format(new_node, db_name)))
         return
 
     shards_for_new_node = None
@@ -26,7 +28,7 @@ def _update_db_doc_with_new_node(node_details, db_name, new_node):
             break
 
     if not shards_for_new_node:
-        print('Unable to find shards for db {}'.format(db_name))
+        print(('Unable to find shards for db {}'.format(db_name)))
         return
 
     print('  Adding shards to new node:\n')
@@ -36,12 +38,12 @@ def _update_db_doc_with_new_node(node_details, db_name, new_node):
     for shard in shards_for_new_node:
         current_nodes = db_doc['by_range'][shard]
         if new_node not in current_nodes:
-            print('    {}'.format(shard))
+            print(('    {}'.format(shard)))
             current_nodes.append(new_node)
         else:
-            print('    Node already had shard: {}'.format(shard))
+            print(('    Node already had shard: {}'.format(shard)))
 
-    print('  Updating db config for {}'.format(db_name))
+    print(('  Updating db config for {}'.format(db_name)))
     do_node_local_request(node_details, '_dbs/{}'.format(db_name), method='put', json=db_doc)
 
 

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from mock.mock import patch
 
 from couchdb_cluster_admin.suggest_shard_allocation import suggest_shard_allocation, _NodeAllocation

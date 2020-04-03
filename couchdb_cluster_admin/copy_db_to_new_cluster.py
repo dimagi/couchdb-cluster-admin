@@ -1,10 +1,12 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import argparse
 import getpass
 import sys
 
 from requests.exceptions import HTTPError
 
-from utils import (
+from .utils import (
     check_connection,
     confirm,
     do_node_local_request,
@@ -20,7 +22,7 @@ def _copy_db_doc(from_details, to_details, db_name):
         if e.response.status_code != 404:
             raise
     else:
-        print("{} already exists in destination cluster".format(db_name))
+        print(("{} already exists in destination cluster".format(db_name)))
         return
 
     from_db_doc = do_node_local_request(from_details, '_dbs/{}'.format(db_name))
@@ -39,7 +41,7 @@ def _copy_db_doc(from_details, to_details, db_name):
             break
 
     if not db_shards:
-        print('Unable to find shards for db {}'.format(db_name))
+        print(('Unable to find shards for db {}'.format(db_name)))
         return
 
     for detail in to_details:
@@ -49,7 +51,7 @@ def _copy_db_doc(from_details, to_details, db_name):
     for shard in db_shards:
         to_db_doc['by_range'][shard] = nodes
 
-    print('  Updating db config for {}'.format(db_name))
+    print(('  Updating db config for {}'.format(db_name)))
     do_node_local_request(to_details[0], '_dbs/{}'.format(db_name), method='put', json=to_db_doc)
 
 
@@ -101,6 +103,6 @@ if __name__ == '__main__':
     print(dbs)
     for db_name in dbs:
         if db_name.startswith('_'):
-            print('Skipping {}'.format(db_name))
+            print(('Skipping {}'.format(db_name)))
             continue
         _copy_db_doc(from_details, to_details, db_name)
