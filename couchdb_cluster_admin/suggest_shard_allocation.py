@@ -386,7 +386,7 @@ def main():
                 print(put_shard_allocation(config, shard_allocation_doc))
             except requests.exceptions.HTTPError as e:
                 if db_name.startswith('_') and e.response.json().get('error') == 'illegal_docid':
-                    print(("Skipping {} (error response was {})".format(db_name, e.response.json())))
+                    print("Skipping {} (error response was {})".format(db_name, e.response.json()))
                 else:
                     raise
 
