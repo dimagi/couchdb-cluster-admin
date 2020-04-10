@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 function setup {
-    db_name=test$(head -n20 /dev/random | python -c 'import hashlib, sys; print hashlib.md5(sys.stdin.read()).hexdigest()')
+    db_name=test$(head -n20 /dev/random | python -c 'import hashlib, sys; print(hashlib.md5(sys.stdin.read()).hexdigest())')
     echo "PUT" $db_name
     curl -sX PUT http://localhost:15984/${db_name}
     curl -sX PUT http://localhost:15984/_users
