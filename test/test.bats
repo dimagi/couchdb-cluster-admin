@@ -1,7 +1,17 @@
 #!/usr/bin/env bats
 
+function generate_db_name {
+    PYTHON_VERSION=$(python -c 'import sys; print(sys.version_info[0])')
+    if [ $PYTHON_VERSION == "3" ]
+    then
+        echo "test$(head -n20 /dev/random | python -c 'import hashlib, sys; print(hashlib.md5(sys.stdin.buffer.read()).hexdigest())')"
+    else
+        echo "test$(head -n20 /dev/random | python -c 'import hashlib, sys; print(hashlib.md5(sys.stdin.read()).hexdigest())')"
+    fi
+}
+
 function setup {
-    db_name=test$(head -n20 /dev/random | python -c 'import hashlib, sys; print(hashlib.md5(sys.stdin.read()).hexdigest())')
+    db_name="$(generate_db_name)"
     echo "PUT" $db_name
     curl -sX PUT http://localhost:15984/${db_name}
     curl -sX PUT http://localhost:15984/_users
