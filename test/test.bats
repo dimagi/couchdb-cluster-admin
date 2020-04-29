@@ -82,15 +82,15 @@ function wait_for_couch_ping {
     python -m couchdb_cluster_admin.suggest_shard_allocation --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
 
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
     [ "$(doccount)" = '10' ]
     echo $(longform_doccount) $(longform_doccount) $(longform_doccount)
