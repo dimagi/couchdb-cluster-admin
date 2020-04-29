@@ -156,7 +156,7 @@ def get_config_from_args(args):
     if args.conf:
         with open(args.conf) as f:
             # https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-            config = Config.wrap(yaml.safe_load(f))
+            config = Config.wrap(yaml.load(f))
     else:
         config = Config(
             control_node_ip=args.control_node_ip,
