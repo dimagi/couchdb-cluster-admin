@@ -13,7 +13,7 @@ function generate_db_name {
 function setup {
     db_name="$(generate_db_name)"
     echo "PUT" $db_name
-    curl -sX PUT http://localhost:15984/${db_name}
+    curl -sX PUT "http://localhost:15984/${db_name}?q=1&n=1"
     curl -sX PUT http://localhost:15984/_users
     curl -sX PUT http://localhost:15984/_users/org.couchdb.user:jan \
      -H "Accept: application/json" \
