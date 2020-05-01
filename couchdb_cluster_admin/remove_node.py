@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 
-from utils import (
+from .utils import (
     check_connection,
     confirm,
     do_node_local_request,

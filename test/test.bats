@@ -1,9 +1,19 @@
 #!/usr/bin/env bats
 
+function generate_db_name {
+    PYTHON_VERSION=$(python -c 'import sys; print(sys.version_info[0])')
+    if [ $PYTHON_VERSION == "3" ]
+    then
+        echo "test$(head -n20 /dev/random | python -c 'import hashlib, sys; print(hashlib.md5(sys.stdin.buffer.read()).hexdigest())')"
+    else
+        echo "test$(head -n20 /dev/random | python -c 'import hashlib, sys; print(hashlib.md5(sys.stdin.read()).hexdigest())')"
+    fi
+}
+
 function setup {
-    db_name=test$(head -n20 /dev/random | python -c 'import hashlib, sys; print hashlib.md5(sys.stdin.read()).hexdigest()')
+    db_name="$(generate_db_name)"
     echo "PUT" $db_name
-    curl -sX PUT http://localhost:15984/${db_name}
+    curl -sX PUT "http://localhost:15984/${db_name}?q=2&n=2"
     curl -sX PUT http://localhost:15984/_users
     curl -sX PUT http://localhost:15984/_users/org.couchdb.user:jan \
      -H "Accept: application/json" \
@@ -23,7 +33,7 @@ function longform_doccount {
 function make_rsync_files {
     FROM_NODE=$1
     TO_NODE=$2
-    python couchdb_cluster_admin/file_plan.py important --conf test/local.yml --from-plan=test/local.plan.json --node $TO_NODE > test/$TO_NODE.files.txt
+    python -m couchdb_cluster_admin.file_plan important --conf test/local.yml --from-plan=test/local.plan.json --node $TO_NODE > test/$TO_NODE.files.txt
 }
 
 function rsync_files {
@@ -41,9 +51,9 @@ function wait_for_couch_ping {
 }
 
 @test "add shards from one node to a cluster" {
-    python couchdb_cluster_admin/suggest_shard_allocation.py --conf=test/local.yml --allocate node1:1 --commit-to-couchdb
+    python -m couchdb_cluster_admin.suggest_shard_allocation --conf=test/local.yml --allocate node1:1 --commit-to-couchdb
 
-    python couchdb_cluster_admin/suggest_shard_allocation.py --conf=test/local.yml --allocate node1:1 node2,node3,node4:2 --save-plan=test/local.plan.json
+    python -m couchdb_cluster_admin.suggest_shard_allocation --conf=test/local.yml --allocate node1:1 node2,node3,node4:2 --save-plan=test/local.plan.json
 
     for i in {1..10}
     do
@@ -69,18 +79,18 @@ function wait_for_couch_ping {
     run rsync_files node1 node3 && [ "$status" = '23' ]
     run rsync_files node1 node4 && [ "$status" = '23' ]
 
-    python couchdb_cluster_admin/suggest_shard_allocation.py --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
+    python -m couchdb_cluster_admin.suggest_shard_allocation --conf=test/local.yml --from-plan=test/local.plan.json --commit-to-couchdb
 
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
-    sleep 5
+    sleep 10
     echo $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount) $(doccount)
     [ "$(doccount)" = '10' ]
     echo $(longform_doccount) $(longform_doccount) $(longform_doccount)

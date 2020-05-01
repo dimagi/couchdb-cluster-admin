@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import argparse
 import getpass
 from collections import namedtuple
@@ -9,7 +10,10 @@ import time
 import yaml
 from requests import HTTPError
 
-from doc_models import MembershipDoc, ShardAllocationDoc
+from .doc_models import MembershipDoc, ShardAllocationDoc
+import six
+from six.moves import range
+from six.moves import input
 
 NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port username password socks_port')
 
@@ -94,7 +98,7 @@ def put_shard_allocation(config, shard_allocation_doc):
 
 
 def confirm(msg):
-    return raw_input(msg + "\n(y/n)") == 'y'
+    return input(msg + "\n(y/n)") == 'y'
 
 
 def get_arg_parser(command_description):
@@ -120,7 +124,7 @@ class Config(JsonObject):
     control_node_port = IntegerProperty()
     control_node_local_port = IntegerProperty()
     username = StringProperty()
-    aliases = DictProperty(unicode)
+    aliases = DictProperty(six.text_type)
 
     def set_password(self, password):
         self._password = password
@@ -151,6 +155,7 @@ class Config(JsonObject):
 def get_config_from_args(args):
     if args.conf:
         with open(args.conf) as f:
+            # https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
             config = Config.wrap(yaml.load(f))
     else:
         config = Config(

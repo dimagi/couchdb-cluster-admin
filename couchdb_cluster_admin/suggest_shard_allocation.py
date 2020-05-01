@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import argparse
 from collections import defaultdict
 import json
@@ -5,11 +7,12 @@ import json
 import requests
 from memoized import memoized_property
 
-from utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
+from .utils import humansize, get_arg_parser, get_config_from_args, check_connection, \
     get_db_list, get_db_metadata, get_shard_allocation, do_couch_request, put_shard_allocation
-from describe import print_shard_table
-from file_plan import read_plan_file
-from doc_models import ShardAllocationDoc, AllocationSpec
+from .describe import print_shard_table
+from .file_plan import read_plan_file
+from .doc_models import ShardAllocationDoc, AllocationSpec
+from six.moves import range
 
 
 class _NodeAllocation(object):
@@ -218,19 +221,19 @@ def print_db_info(config):
     """
     info = sorted(get_db_info(config))
     row = u"{: <30}\t{: <20}\t{: <20}\t{: <20}"
-    print row.format(u"Database", u"Data size on Disk", u"View size on Disk", u"Number of shards")
+    print(row.format(u"Database", u"Data size on Disk", u"View size on Disk", u"Number of shards"))
     for db_name, size, view_sizes, shards, _ in info:
-        print row.format(
+        print(row.format(
             db_name,
             humansize(size),
             humansize(sum([view_size for view_name, view_size in view_sizes.items()])),
             len(shards)
-        )
+        ))
 
 
 def get_shard_sizes(db_info, databases):
     return [
-        (1.0 * sum([size] + views_size.values()) / len(shards), (shard_name, db_name))
+        (1.0 * sum([size] + list(views_size.values())) / len(shards), (shard_name, db_name))
         for db_name, size, views_size, shards, _ in db_info
         for shard_name in shards if db_name in databases
     ]
@@ -275,7 +278,7 @@ def make_suggested_allocation_by_db(config, db_info, allocation_specs):
             existing_allocation=existing_allocation
         )
         for node_allocation in suggested_shard_allocation:
-            print "{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size))
+            print("{}\t{}".format(config.format_node_name(allocation.nodes[node_allocation.i]), humansize(node_allocation.size)))
             for shard_name, db_name in node_allocation.shards:
                 suggested_allocation_by_db[db_name].append((allocation.nodes[node_allocation.i], shard_name))
 
@@ -380,7 +383,7 @@ def main():
         for shard_allocation_doc in shard_allocations:
             db_name = shard_allocation_doc.db_name
             try:
-                print put_shard_allocation(config, shard_allocation_doc)
+                print(put_shard_allocation(config, shard_allocation_doc))
             except requests.exceptions.HTTPError as e:
                 if db_name.startswith('_') and e.response.json().get('error') == 'illegal_docid':
                     print("Skipping {} (error response was {})".format(db_name, e.response.json()))

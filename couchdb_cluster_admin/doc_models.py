@@ -1,11 +1,14 @@
+from __future__ import absolute_import
 from collections import defaultdict
 from jsonobject import JsonObject, ListProperty, DictProperty, StringProperty, IntegerProperty
+from six.moves import map
+import six
 
 
 class ConfigInjectionMixin(object):
     @property
     def config(self):
-        from utils import Config
+        from .utils import Config
         try:
             return self._config
         except AttributeError:
@@ -19,8 +22,8 @@ class ConfigInjectionMixin(object):
 class MembershipDoc(ConfigInjectionMixin, JsonObject):
     _allow_dynamic_properties = False
 
-    cluster_nodes = ListProperty(unicode, required=True)
-    all_nodes = ListProperty(unicode, required=True)
+    cluster_nodes = ListProperty(six.text_type, required=True)
+    all_nodes = ListProperty(six.text_type, required=True)
 
     def get_printable(self):
         return (
@@ -38,10 +41,10 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
     _id = StringProperty()
     _rev = StringProperty(exclude_if_none=True)
 
-    by_node = DictProperty(ListProperty(unicode))
-    changelog = ListProperty(ListProperty(unicode))
+    by_node = DictProperty(ListProperty(six.text_type))
+    changelog = ListProperty(ListProperty(six.text_type))
     shard_suffix = ListProperty(int)
-    by_range = DictProperty(ListProperty(unicode))
+    by_range = DictProperty(ListProperty(six.text_type))
 
     @property
     def usable_shard_suffix(self):
@@ -123,6 +126,6 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
 
 
 class AllocationSpec(JsonObject):
-    databases = ListProperty(unicode)
-    nodes = ListProperty(unicode)
+    databases = ListProperty(six.text_type)
+    nodes = ListProperty(six.text_type)
     copies = IntegerProperty()

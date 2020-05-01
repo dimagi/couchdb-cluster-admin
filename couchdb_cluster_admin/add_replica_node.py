@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 
-from utils import (
+from .utils import (
     add_node_to_cluster,
     check_connection,
     confirm,
