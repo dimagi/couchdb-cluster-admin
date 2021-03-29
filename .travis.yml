@@ -2,14 +2,14 @@
 sudo: required
 language: python
 python: 
-  - "2.7"
   - "3.6"
-before_install:
-  - git clone https://github.com/sstephenson/bats.git
-  - cd bats
-  - git checkout v0.4.0
-  - sudo ./install.sh /usr/local
-  - cd -
+# setup for bats test
+#before_install:
+#  - git clone https://github.com/sstephenson/bats.git
+#  - cd bats
+#  - git checkout v0.4.0
+#  - sudo ./install.sh /usr/local
+#  - cd -
 install:
   - pip install -r requirements.txt
   - pip install -r test-requirements.txt
@@ -36,6 +36,8 @@ before_script:
     done
 script:
   - py.test tests.py
-  - bats test
+  # Flaky test, needs to be fixed. Ideally it would be rewritten in Python,
+  # possibly using sh (https://pypi.org/project/sh/) and requests or pycurl.
+  #- bats test
 services:
   - docker
