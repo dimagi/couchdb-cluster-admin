@@ -1,6 +1,7 @@
 control_node_ip: localhost
 control_node_port: 15984
 control_node_local_port: 15986
+couchdb_version: '3.1.1'
 username: ''
 
 aliases:

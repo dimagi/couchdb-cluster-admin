@@ -154,7 +154,7 @@ class Allocator(object):
 
 
 def get_db_size(node_details, db_name):
-    return get_db_metadata(node_details, db_name)['disk_size']
+    return get_db_metadata(node_details, db_name)['sizes']['file']
 
 
 def get_view_signature_and_size(node_details, db_name, view_name):
