@@ -4,6 +4,7 @@ import getpass
 from collections import namedtuple
 import os
 from jsonobject import JsonObject, StringProperty, IntegerProperty, DictProperty
+from distutils.version import LooseVersion
 
 import requests
 import time
@@ -15,7 +16,7 @@ import six
 from six.moves import range
 from six.moves import input
 
-NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port username password socks_port')
+NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port couchdb_version username password socks_port')
 
 
 def do_couch_request(node_details, path, method='get', params=None, json=None):
@@ -23,7 +24,12 @@ def do_couch_request(node_details, path, method='get', params=None, json=None):
 
 
 def do_node_local_request(node_details, path, method='get', params=None, json=None):
-    return _do_request(node_details, path, node_details.node_local_port, method=method, params=params, json=json)
+    if LooseVersion(node_details.couchdb_version) >= LooseVersion('3.0.0'):
+        node_local_port = node_details.port
+        path = '_node/_local/' + path
+    else:
+        node_local_port = node_details.node_local_port
+    return _do_request(node_details, path, node_local_port, method=method, params=params, json=json)
 
 
 def _do_request(node_details, path, port, method='get', params=None, json=None):
@@ -117,12 +123,15 @@ def set_up_parser(parser):
                         help='Port of control node. Default: 15984')
     parser.add_argument('--control-node-local-port', dest='control_node_local_port', default=15986, type=int,
                         help='Port of control node for local operations. Default: 15986')
+    parser.add_argument('--couchdb-version', dest='couchdb_version', default='2.3.1',
+                        help='Version of CouchDB. Default: 2.3.1')
 
 
 class Config(JsonObject):
     control_node_ip = StringProperty()
     control_node_port = IntegerProperty()
     control_node_local_port = IntegerProperty()
+    couchdb_version = StringProperty()
     username = StringProperty()
     aliases = DictProperty(six.text_type)
 
@@ -131,7 +140,7 @@ class Config(JsonObject):
 
     def get_control_node(self):
         return NodeDetails(
-            self.control_node_ip, self.control_node_port, self.control_node_local_port,
+            self.control_node_ip, self.control_node_port, self.control_node_local_port, self.couchdb_version,
             self.username, self._password, None
         )
 
@@ -162,6 +171,7 @@ def get_config_from_args(args):
             control_node_ip=args.control_node_ip,
             control_node_port=args.control_node_port,
             control_node_local_port=args.control_node_local_port,
+            couchdb_version=args.couchdb_version,
             username=args.username,
             aliases=None,
         )
