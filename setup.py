@@ -46,7 +46,7 @@ setup(
     version=get_version('couchdb_cluster_admin/__init__.py'),
     description='Utility for managing multi-node couchdb 2.x clusters',
     long_description=read_md('README.md'),
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/x-rst",
     maintainer='Dimagi',
     maintainer_email='dev@dimagi.com',
     url='https://github.com/dimagi/couchdb-cluster-admin',
