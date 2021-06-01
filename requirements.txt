@@ -15,4 +15,4 @@ jsonobject==0.9.8
 pyyaml==5.4.1
 requests==2.21.0
 six==1.12.0               # via jsonobject
-urllib3==1.24.3           # via requests
+urllib3==1.26.5           # via requests
