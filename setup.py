@@ -56,7 +56,7 @@ setup(
     install_requires=(
         'argparse>=1.4',
         'gevent',
-        'jsonobject>=0.8.0',
+        'jsonobject',
         'PyYAML',
         'requests',
         'dimagi-memoized'

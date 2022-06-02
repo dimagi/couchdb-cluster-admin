@@ -18,7 +18,7 @@ greenlet==0.4.15
     # via gevent
 idna==2.8
     # via requests
-jsonobject==0.9.8
+jsonobject==2.0.0
     # via couchdb-cluster-admin (setup.py)
 pyyaml==5.4.1
     # via couchdb-cluster-admin (setup.py)
