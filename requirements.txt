@@ -8,7 +8,7 @@ argparse==1.4.0
     # via couchdb-cluster-admin (setup.py)
 certifi==2018.11.29
     # via requests
-chardet==3.0.4
+charset-normalizer==2.0.12
     # via requests
 dimagi-memoized==1.1.1
     # via couchdb-cluster-admin (setup.py)
@@ -22,9 +22,9 @@ jsonobject==0.9.8
     # via couchdb-cluster-admin (setup.py)
 pyyaml==5.4.1
     # via couchdb-cluster-admin (setup.py)
-requests==2.21.0
+requests==2.27.1
     # via couchdb-cluster-admin (setup.py)
 six==1.12.0
     # via jsonobject
-urllib3==1.24.3
+urllib3==1.26.5
     # via requests
