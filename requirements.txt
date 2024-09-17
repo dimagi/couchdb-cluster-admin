@@ -22,7 +22,7 @@ jsonobject==2.2.0
     # via couchdb-cluster-admin (setup.py)
 pyyaml==6.0.2
     # via couchdb-cluster-admin (setup.py)
-requests==2.27.1
+requests==2.32.2
     # via couchdb-cluster-admin (setup.py)
 urllib3==1.26.5
     # via requests
