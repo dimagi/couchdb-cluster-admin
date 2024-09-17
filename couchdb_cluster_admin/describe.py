@@ -9,7 +9,6 @@ from .utils import (
     get_shard_allocation,
     indent,
 )
-from six.moves import map
 
 
 def print_shard_table(shard_allocation_docs):

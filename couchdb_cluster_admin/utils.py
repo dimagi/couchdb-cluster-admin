@@ -12,9 +12,6 @@ import yaml
 from requests import HTTPError
 
 from .doc_models import MembershipDoc, ShardAllocationDoc
-import six
-from six.moves import range
-from six.moves import input
 
 NodeDetails = namedtuple('NodeDetails', 'ip port node_local_port couchdb_version username password socks_port')
 
@@ -133,7 +130,7 @@ class Config(JsonObject):
     control_node_local_port = IntegerProperty()
     couchdb_version = StringProperty()
     username = StringProperty()
-    aliases = DictProperty(six.text_type)
+    aliases = DictProperty(str)
 
     def set_password(self, password):
         self._password = password
