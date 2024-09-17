@@ -109,3 +109,5 @@ ENV/
 
 # IDE config
 .idea
+
+*.swp
