@@ -16,7 +16,7 @@ gevent==24.2.1
     # via couchdb-cluster-admin (setup.py)
 greenlet==3.1.0
     # via gevent
-idna==2.8
+idna==3.7
     # via requests
 jsonobject==2.2.0
     # via couchdb-cluster-admin (setup.py)
