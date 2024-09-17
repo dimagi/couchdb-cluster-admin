@@ -6,7 +6,7 @@
 #
 argparse==1.4.0
     # via couchdb-cluster-admin (setup.py)
-certifi==2018.11.29
+certifi==2024.7.4
     # via requests
 charset-normalizer==2.0.12
     # via requests
