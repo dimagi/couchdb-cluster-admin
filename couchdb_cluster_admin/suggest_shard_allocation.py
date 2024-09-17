@@ -12,7 +12,6 @@ from .utils import humansize, get_arg_parser, get_config_from_args, check_connec
 from .describe import print_shard_table
 from .file_plan import read_plan_file
 from .doc_models import ShardAllocationDoc, AllocationSpec
-from six.moves import range
 
 
 class _NodeAllocation(object):
