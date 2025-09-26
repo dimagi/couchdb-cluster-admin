@@ -43,6 +43,7 @@ class ShardAllocationDoc(ConfigInjectionMixin, JsonObject):
     changelog = ListProperty(ListProperty(str))
     shard_suffix = ListProperty(int)
     by_range = DictProperty(ListProperty(str))
+    props = DictProperty(dict)
 
     @property
     def usable_shard_suffix(self):
