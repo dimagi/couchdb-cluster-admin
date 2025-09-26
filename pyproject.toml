@@ -1,0 +1,54 @@
+[project]
+name = "couchdb-cluster-admin"
+description = "Utility for managing multi-node couchdb clusters"
+authors = [{name = "Dimagi", email = "dev@dimagi.com"}]
+license = {file = "LICENSE"}
+readme = {file = "README.md", content-type = "text/markdown"}
+dynamic = ["version"]
+requires-python = ">= 3.10"
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Environment :: Web Environment',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Operating System :: OS Independent',
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    'Topic :: Software Development :: Libraries :: Python Modules',
+]
+dependencies = [
+    'argparse>=1.4',
+    'dimagi-memoized',
+    'gevent',
+    'jsonobject',
+    'PyYAML',
+    'requests',
+]
+
+[dependency-groups]
+dev = [
+    'mock',
+    'pytest',
+]
+
+[project.urls]
+Home = "https://github.com/dimagi/couchdb-cluster-admin"
+
+[build-system]
+requires = [
+    "setuptools>=75",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["couchdb_cluster_admin"]
+
+[tool.setuptools.dynamic]
+version = {attr = "couchdb_cluster_admin.__version__"}
+
+[tool.distutils.bdist_wheel]
+universal = true
+
+[tool.flake8]
+exclude = "./build"
