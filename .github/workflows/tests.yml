@@ -19,15 +19,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    - uses: astral-sh/setup-uv@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        version: '>=0.7'
+        python-version: ${{ matrix.python }}
     - name: Install dependencies
-      run: |
-        python --version
-        pip install --upgrade pip
-        pip install -e .[test]
+      run: uv sync --locked
     - name: Make data directory if needed
       run: |
         mkdir -p /home/runner/work/couchdb-cluster-admin/couchdb-cluster-admin/data
@@ -36,5 +33,4 @@ jobs:
         docker build -t couchdb-cluster - < docker-couchdb-cluster/Dockerfile
         docker run -d --name couchdb-cluster -v $(pwd)/data:/usr/src/couchdb/dev/lib/ -p 15984:15984 -p 15986:15986 -p 25984:25984 -p 25986:25986 -p 35984:35984 -p 35986:35986 -p 45984:45984 -p 45986:45986 -t couchdb-cluster --with-admin-party-please -n 4
     - name: Run tests
-      run: |
-        pytest tests.py
+      run: .venv/bin/pytest tests.py

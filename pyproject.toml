@@ -26,8 +26,8 @@ dependencies = [
     'requests',
 ]
 
-[project.optional-dependencies]
-test = [
+[dependency-groups]
+dev = [
     'mock',
     'pytest',
 ]
